@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Calendar, Users, Clock, TrendingUp, IndianRupee,
+  Calendar, Users, Clock, IndianRupee,
   ArrowUpRight, ArrowDownRight, Activity
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
