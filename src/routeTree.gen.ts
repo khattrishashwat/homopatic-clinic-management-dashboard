@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as DashboardIndexRouteImport } from './routes/_dashboard/index'
+import { Route as DashboardSlotsRouteImport } from './routes/_dashboard/slots'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
 
 const DashboardRoute = DashboardRouteImport.update({
@@ -22,6 +23,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardSlotsRoute = DashboardSlotsRouteImport.update({
+  id: '/slots',
+  path: '/slots',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardAppointmentsRoute = DashboardAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
@@ -31,23 +37,31 @@ const DashboardAppointmentsRoute = DashboardAppointmentsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
   '/appointments': typeof DashboardAppointmentsRoute
+  '/slots': typeof DashboardSlotsRoute
 }
 export interface FileRoutesByTo {
   '/appointments': typeof DashboardAppointmentsRoute
+  '/slots': typeof DashboardSlotsRoute
   '/': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_dashboard': typeof DashboardRouteWithChildren
   '/_dashboard/appointments': typeof DashboardAppointmentsRoute
+  '/_dashboard/slots': typeof DashboardSlotsRoute
   '/_dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/appointments'
+  fullPaths: '/' | '/appointments' | '/slots'
   fileRoutesByTo: FileRoutesByTo
-  to: '/appointments' | '/'
-  id: '__root__' | '/_dashboard' | '/_dashboard/appointments' | '/_dashboard/'
+  to: '/appointments' | '/slots' | '/'
+  id:
+    | '__root__'
+    | '/_dashboard'
+    | '/_dashboard/appointments'
+    | '/_dashboard/slots'
+    | '/_dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -70,6 +84,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/slots': {
+      id: '/_dashboard/slots'
+      path: '/slots'
+      fullPath: '/slots'
+      preLoaderRoute: typeof DashboardSlotsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/appointments': {
       id: '/_dashboard/appointments'
       path: '/appointments'
@@ -82,11 +103,13 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardAppointmentsRoute: typeof DashboardAppointmentsRoute
+  DashboardSlotsRoute: typeof DashboardSlotsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAppointmentsRoute: DashboardAppointmentsRoute,
+  DashboardSlotsRoute: DashboardSlotsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 
