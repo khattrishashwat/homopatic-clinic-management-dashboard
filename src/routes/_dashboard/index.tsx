@@ -17,7 +17,7 @@ import {
   mockAppointments
 } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_dashboard/")({
   component: Index,
 });
 
