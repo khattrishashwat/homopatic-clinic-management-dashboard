@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Calendar, Clock, Users, FileText, FolderHeart,
@@ -29,6 +29,8 @@ export function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user") || "{}") as { name?: string; email?: string };
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -38,6 +40,12 @@ export function DashboardLayout() {
   const isActive = (path: string) => {
     if (path === "/") return currentPath === "/";
     return currentPath.startsWith(path);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate({ to: "/login" });
   };
 
   return (
@@ -128,10 +136,10 @@ export function DashboardLayout() {
                 <User className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-sidebar-foreground truncate">Dr. Admin</p>
-                <p className="text-[10px] text-muted-foreground truncate">admin@homeoclinic.com</p>
+                <p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name || "Admin"}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{user.email || "admin"}</p>
               </div>
-              <LogOut className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-destructive transition-colors" />
+              <LogOut onClick={logout} className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-destructive transition-colors" />
             </div>
           ) : (
             <div className="flex justify-center">

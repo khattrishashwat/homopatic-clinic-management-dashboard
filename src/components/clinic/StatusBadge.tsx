@@ -11,22 +11,13 @@ const variantClasses: Record<StatusVariant, string> = {
   muted: "bg-muted text-muted-foreground border-border",
 };
 
-const statusMap: Record<string, StatusVariant> = {
-  approved: "success", completed: "success", delivered: "success", sent: "sent" as any,
-  pending: "warning", packed: "warning", rescheduled: "warning",
-  missed: "error", rejected: "error", failed: "error", cancelled: "error",
-  paid: "success", refunded: "info", draft: "muted", published: "success",
-  online: "info", offline: "default", shipped: "info",
-};
-
-// Fix the sent mapping
 const getVariant = (status: string): StatusVariant => {
   const map: Record<string, StatusVariant> = {
-    approved: "success", completed: "success", delivered: "success", sent: "success",
-    pending: "warning", packed: "warning", rescheduled: "warning",
+    approved: "success", confirmed: "success", completed: "success", delivered: "success", sent: "success", paid: "success", captured: "success", available: "success", read: "success",
+    pending: "warning", packed: "warning", processing: "warning", rescheduled: "warning", created: "warning", blocked: "warning",
     missed: "error", rejected: "error", failed: "error", cancelled: "error",
-    paid: "success", refunded: "info", draft: "muted", published: "success",
-    online: "info", offline: "default", shipped: "info",
+    refunded: "info", draft: "muted", published: "success",
+    online: "info", offline: "default", shipped: "info", upi: "info", card: "info", wallet: "info", netbanking: "info",
   };
   return map[status] || "default";
 };

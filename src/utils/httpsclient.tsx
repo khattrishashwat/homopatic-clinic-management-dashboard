@@ -1,245 +1,133 @@
-import axios, { 
-  AxiosInstance, 
-  AxiosRequestConfig, 
-  AxiosResponse, 
-  AxiosError, 
-  InternalAxiosRequestConfig,
-  CancelTokenSource,
-  Canceler
-} from "axios";
-import { toast } from "react-toastify";
-import Swal from "sweetalert2";
+import { toast } from "sonner";
 
-// Custom types
-interface ApiErrorResponse {
-  message?: string;
-  errors?: Record<string, string[]>;
-  statusCode?: number;
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
 }
 
-interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
-  metadata?: {
-    startTime: Date;
-  };
-  _retry?: boolean;
-}
-
-interface ApiResponse<T = any> {
-  data: T;
-  message: string;
+export interface ApiResponse<T = unknown> {
   success: boolean;
-  statusCode: number;
+  message?: string;
+  data: T;
+  pagination?: PaginationMeta;
+  token?: string;
+  user?: AdminUser;
 }
 
-// Configuration interface
-interface HttpClientConfig {
-  baseURL?: string;
-  timeout?: number;
-  withCredentials?: boolean;
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "user";
 }
 
-class HttpClient {
-  private instance: AxiosInstance;
-  private cancelTokens: Map<string, CancelTokenSource> = new Map();
+export class ApiError extends Error {
+  status: number;
+  details?: unknown;
 
-  constructor(config: HttpClientConfig = {}) {
-    this.instance = axios.create({
-      baseURL: config.baseURL || `${import.meta.env.VITE_API_BASE_URL}/api`,
-      timeout: config.timeout || 30000,
-      withCredentials: config.withCredentials || false,
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-    });
-
-    this.setupInterceptors();
-  }
-
-  private setupInterceptors(): void {
-    // Request interceptor
-    this.instance.interceptors.request.use(
-      (config): CustomAxiosRequestConfig => {
-        const token = localStorage.getItem("token");
-        if (token && config.headers) {
-          config.headers["Authorization"] = `Bearer ${token}`;
-        }
-        config.metadata = { startTime: new Date() };
-        return config as CustomAxiosRequestConfig;
-      },
-      (error: AxiosError) => Promise.reject(error)
-    );
-
-    // Response interceptor
-    this.instance.interceptors.response.use(
-      (response: AxiosResponse): AxiosResponse => {
-        const endTime = new Date();
-        const startTime = (response.config as CustomAxiosRequestConfig).metadata?.startTime;
-        const responseTime = startTime ? endTime.getTime() - startTime.getTime() : null;
-
-        if (responseTime !== null && process.env.NODE_ENV === "development") {
-          console.log(`📡 ${response.config.method?.toUpperCase()} ${response.config.url} - ${responseTime}ms`);
-        }
-
-        return response;
-      },
-      (error: AxiosError) => this.handleError(error)
-    );
-  }
-
-  private handleError(error: AxiosError): Promise<never> {
-    const status = error.response?.status;
-    const errorData = error.response?.data as ApiErrorResponse;
-    const message = errorData?.message || "An error occurred";
-    const originalRequest = error.config as CustomAxiosRequestConfig;
-
-    // Log error in development
-    if (process.env.NODE_ENV === "development") {
-      console.error("🚨 API Error:", {
-        status,
-        message,
-        url: originalRequest?.url,
-        method: originalRequest?.method,
-        data: errorData?.errors,
-      });
-    }
-
-    switch (status) {
-      case 401:
-        // Only show session expired popup for endpoints other than login
-        if (!originalRequest?._retry && !originalRequest?.url?.includes("auth/login")) {
-          originalRequest._retry = true;
-          localStorage.clear();
-          sessionStorage.clear();
-          window.location.href = "/admin-panel/login";
-        }
-        break;
-
-      case 403:
-        toast.error("Access Denied: " + message);
-        break;
-
-      case 404:
-        toast.warn(message);
-        break;
-
-      case 422:
-        // Validation errors
-        if (errorData?.errors) {
-          const validationMessages = Object.values(errorData.errors).flat();
-          validationMessages.forEach((msg: string) => toast.error(msg));
-        } else {
-          toast.error(message);
-        }
-        break;
-
-      case 429:
-        toast.warn("Too Many Requests: Please wait before trying again");
-        break;
-
-      case 500:
-        toast.error("Server Error: " + message);
-        break;
-
-      default:
-        if (error.code === "ECONNABORTED") {
-          toast.error("Request timeout. Please try again.");
-        } else if (error.message === "Network Error") {
-          toast.error("Network error. Please check your connection.");
-        } else {
-          toast.error(message);
-        }
-    }
-
-    return Promise.reject(error);
-  }
-
-  // Generic GET request
-  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.instance.get<ApiResponse<T>>(url, config);
-    return response.data;
-  }
-
-  // Generic POST request
-  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.instance.post<ApiResponse<T>>(url, data, config);
-    return response.data;
-  }
-
-  // Generic PUT request
-  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.instance.put<ApiResponse<T>>(url, data, config);
-    return response.data;
-  }
-
-  // Generic PATCH request
-  async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.instance.patch<ApiResponse<T>>(url, data, config);
-    return response.data;
-  }
-
-  // Generic DELETE request
-  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.instance.delete<ApiResponse<T>>(url, config);
-    return response.data;
-  }
-
-  // File upload with progress
-  async upload<T = any>(
-    url: string,
-    file: File,
-    onProgress?: (percentage: number) => void,
-    additionalData?: Record<string, any>
-  ): Promise<ApiResponse<T>> {
-    const formData = new FormData();
-    formData.append("file", file);
-    
-    if (additionalData) {
-      Object.entries(additionalData).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-    }
-
-    const response = await this.instance.post<ApiResponse<T>>(url, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      onUploadProgress: (progressEvent: ProgressEvent) => {
-        if (onProgress && progressEvent.total) {
-          const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          onProgress(percentage);
-        }
-      },
-    });
-
-    return response.data;
-  }
-
-  // Cancel ongoing request
-  cancelRequest(requestKey: string): void {
-    const cancelToken = this.cancelTokens.get(requestKey);
-    if (cancelToken) {
-      cancelToken.cancel(`Request ${requestKey} cancelled`);
-      this.cancelTokens.delete(requestKey);
-    }
-  }
-
-  // Create cancelable request
-  createCancelableRequest(requestKey: string): CancelTokenSource {
-    const source = axios.CancelToken.source();
-    this.cancelTokens.set(requestKey, source);
-    return source;
-  }
-
-  // Get the raw axios instance for advanced use cases
-  getInstance(): AxiosInstance {
-    return this.instance;
+  constructor(message: string, status: number, details?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.details = details;
   }
 }
 
-// Create and export singleton instance
-const httpClient = new HttpClient();
+type RequestOptions = RequestInit & {
+  params?: Record<string, string | number | boolean | undefined | null>;
+  suppressToast?: boolean;
+};
 
-// Export types
-export type { ApiResponse, ApiErrorResponse, HttpClientConfig };
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api`;
+const ASSET_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+export const getAssetUrl = (path?: string) => {
+  if (!path) return "#";
+  if (path.startsWith("http")) return path;
+  return `${ASSET_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+};
+
+const buildUrl = (path: string, params?: RequestOptions["params"]) => {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = new URL(`${API_BASE_URL}${normalizedPath}`);
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  });
+
+  return url.toString();
+};
+
+const getErrorMessage = (payload: unknown, fallback: string) => {
+  if (payload && typeof payload === "object" && "message" in payload) {
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+};
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  const { params, suppressToast, headers, body, ...init } = options;
+  const token = localStorage.getItem("token");
+  const isFormData = body instanceof FormData;
+
+  const response = await fetch(buildUrl(path, params), {
+    ...init,
+    body,
+    headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json") ? await response.json() : null;
+
+  if (!response.ok) {
+    const message = getErrorMessage(payload, "Request failed");
+
+    if (response.status === 401 && !path.includes("/auth/login")) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    } else if (!suppressToast) {
+      toast.error(message);
+    }
+
+    throw new ApiError(message, response.status, payload);
+  }
+
+  return payload as ApiResponse<T>;
+}
+
+const httpClient = {
+  get: <T,>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: "GET" }),
+  post: <T,>(path: string, data?: unknown, options?: RequestOptions) =>
+    request<T>(path, {
+      ...options,
+      method: "POST",
+      body: data instanceof FormData ? data : JSON.stringify(data ?? {}),
+    }),
+  patch: <T,>(path: string, data?: unknown, options?: RequestOptions) =>
+    request<T>(path, {
+      ...options,
+      method: "PATCH",
+      body: data instanceof FormData ? data : JSON.stringify(data ?? {}),
+    }),
+  put: <T,>(path: string, data?: unknown, options?: RequestOptions) =>
+    request<T>(path, {
+      ...options,
+      method: "PUT",
+      body: data instanceof FormData ? data : JSON.stringify(data ?? {}),
+    }),
+  delete: <T,>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: "DELETE" }),
+};
+
 export default httpClient;
