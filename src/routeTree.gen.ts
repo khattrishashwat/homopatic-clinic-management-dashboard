@@ -13,6 +13,7 @@ import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as DashboardIndexRouteImport } from './routes/_dashboard/index'
 import { Route as DashboardSlotsRouteImport } from './routes/_dashboard/slots'
 import { Route as DashboardPrescriptionsRouteImport } from './routes/_dashboard/prescriptions'
+import { Route as DashboardPaymentsRouteImport } from './routes/_dashboard/payments'
 import { Route as DashboardPatientsRouteImport } from './routes/_dashboard/patients'
 import { Route as DashboardMedicalRecordsRouteImport } from './routes/_dashboard/medical-records'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
@@ -36,6 +37,11 @@ const DashboardPrescriptionsRoute = DashboardPrescriptionsRouteImport.update({
   path: '/prescriptions',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardPaymentsRoute = DashboardPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardPatientsRoute = DashboardPatientsRouteImport.update({
   id: '/patients',
   path: '/patients',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/appointments': typeof DashboardAppointmentsRoute
   '/medical-records': typeof DashboardMedicalRecordsRoute
   '/patients': typeof DashboardPatientsRoute
+  '/payments': typeof DashboardPaymentsRoute
   '/prescriptions': typeof DashboardPrescriptionsRoute
   '/slots': typeof DashboardSlotsRoute
 }
@@ -64,6 +71,7 @@ export interface FileRoutesByTo {
   '/appointments': typeof DashboardAppointmentsRoute
   '/medical-records': typeof DashboardMedicalRecordsRoute
   '/patients': typeof DashboardPatientsRoute
+  '/payments': typeof DashboardPaymentsRoute
   '/prescriptions': typeof DashboardPrescriptionsRoute
   '/slots': typeof DashboardSlotsRoute
   '/': typeof DashboardIndexRoute
@@ -74,6 +82,7 @@ export interface FileRoutesById {
   '/_dashboard/appointments': typeof DashboardAppointmentsRoute
   '/_dashboard/medical-records': typeof DashboardMedicalRecordsRoute
   '/_dashboard/patients': typeof DashboardPatientsRoute
+  '/_dashboard/payments': typeof DashboardPaymentsRoute
   '/_dashboard/prescriptions': typeof DashboardPrescriptionsRoute
   '/_dashboard/slots': typeof DashboardSlotsRoute
   '/_dashboard/': typeof DashboardIndexRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
     | '/appointments'
     | '/medical-records'
     | '/patients'
+    | '/payments'
     | '/prescriptions'
     | '/slots'
   fileRoutesByTo: FileRoutesByTo
@@ -92,6 +102,7 @@ export interface FileRouteTypes {
     | '/appointments'
     | '/medical-records'
     | '/patients'
+    | '/payments'
     | '/prescriptions'
     | '/slots'
     | '/'
@@ -101,6 +112,7 @@ export interface FileRouteTypes {
     | '/_dashboard/appointments'
     | '/_dashboard/medical-records'
     | '/_dashboard/patients'
+    | '/_dashboard/payments'
     | '/_dashboard/prescriptions'
     | '/_dashboard/slots'
     | '/_dashboard/'
@@ -140,6 +152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPrescriptionsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/payments': {
+      id: '/_dashboard/payments'
+      path: '/payments'
+      fullPath: '/payments'
+      preLoaderRoute: typeof DashboardPaymentsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/patients': {
       id: '/_dashboard/patients'
       path: '/patients'
@@ -168,6 +187,7 @@ interface DashboardRouteChildren {
   DashboardAppointmentsRoute: typeof DashboardAppointmentsRoute
   DashboardMedicalRecordsRoute: typeof DashboardMedicalRecordsRoute
   DashboardPatientsRoute: typeof DashboardPatientsRoute
+  DashboardPaymentsRoute: typeof DashboardPaymentsRoute
   DashboardPrescriptionsRoute: typeof DashboardPrescriptionsRoute
   DashboardSlotsRoute: typeof DashboardSlotsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
@@ -177,6 +197,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAppointmentsRoute: DashboardAppointmentsRoute,
   DashboardMedicalRecordsRoute: DashboardMedicalRecordsRoute,
   DashboardPatientsRoute: DashboardPatientsRoute,
+  DashboardPaymentsRoute: DashboardPaymentsRoute,
   DashboardPrescriptionsRoute: DashboardPrescriptionsRoute,
   DashboardSlotsRoute: DashboardSlotsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
