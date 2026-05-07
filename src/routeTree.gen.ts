@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as DashboardIndexRouteImport } from './routes/_dashboard/index'
 import { Route as DashboardSlotsRouteImport } from './routes/_dashboard/slots'
+import { Route as DashboardPrescriptionsRouteImport } from './routes/_dashboard/prescriptions'
 import { Route as DashboardPatientsRouteImport } from './routes/_dashboard/patients'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
 
@@ -29,6 +30,11 @@ const DashboardSlotsRoute = DashboardSlotsRouteImport.update({
   path: '/slots',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardPrescriptionsRoute = DashboardPrescriptionsRouteImport.update({
+  id: '/prescriptions',
+  path: '/prescriptions',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardPatientsRoute = DashboardPatientsRouteImport.update({
   id: '/patients',
   path: '/patients',
@@ -44,11 +50,13 @@ export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
   '/appointments': typeof DashboardAppointmentsRoute
   '/patients': typeof DashboardPatientsRoute
+  '/prescriptions': typeof DashboardPrescriptionsRoute
   '/slots': typeof DashboardSlotsRoute
 }
 export interface FileRoutesByTo {
   '/appointments': typeof DashboardAppointmentsRoute
   '/patients': typeof DashboardPatientsRoute
+  '/prescriptions': typeof DashboardPrescriptionsRoute
   '/slots': typeof DashboardSlotsRoute
   '/': typeof DashboardIndexRoute
 }
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/_dashboard': typeof DashboardRouteWithChildren
   '/_dashboard/appointments': typeof DashboardAppointmentsRoute
   '/_dashboard/patients': typeof DashboardPatientsRoute
+  '/_dashboard/prescriptions': typeof DashboardPrescriptionsRoute
   '/_dashboard/slots': typeof DashboardSlotsRoute
   '/_dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/appointments' | '/patients' | '/slots'
+  fullPaths: '/' | '/appointments' | '/patients' | '/prescriptions' | '/slots'
   fileRoutesByTo: FileRoutesByTo
-  to: '/appointments' | '/patients' | '/slots' | '/'
+  to: '/appointments' | '/patients' | '/prescriptions' | '/slots' | '/'
   id:
     | '__root__'
     | '/_dashboard'
     | '/_dashboard/appointments'
     | '/_dashboard/patients'
+    | '/_dashboard/prescriptions'
     | '/_dashboard/slots'
     | '/_dashboard/'
   fileRoutesById: FileRoutesById
@@ -101,6 +111,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSlotsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/prescriptions': {
+      id: '/_dashboard/prescriptions'
+      path: '/prescriptions'
+      fullPath: '/prescriptions'
+      preLoaderRoute: typeof DashboardPrescriptionsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/patients': {
       id: '/_dashboard/patients'
       path: '/patients'
@@ -121,6 +138,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardAppointmentsRoute: typeof DashboardAppointmentsRoute
   DashboardPatientsRoute: typeof DashboardPatientsRoute
+  DashboardPrescriptionsRoute: typeof DashboardPrescriptionsRoute
   DashboardSlotsRoute: typeof DashboardSlotsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
@@ -128,6 +146,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAppointmentsRoute: DashboardAppointmentsRoute,
   DashboardPatientsRoute: DashboardPatientsRoute,
+  DashboardPrescriptionsRoute: DashboardPrescriptionsRoute,
   DashboardSlotsRoute: DashboardSlotsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
