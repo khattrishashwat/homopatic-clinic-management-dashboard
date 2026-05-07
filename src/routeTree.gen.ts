@@ -14,6 +14,7 @@ import { Route as DashboardIndexRouteImport } from './routes/_dashboard/index'
 import { Route as DashboardSlotsRouteImport } from './routes/_dashboard/slots'
 import { Route as DashboardPrescriptionsRouteImport } from './routes/_dashboard/prescriptions'
 import { Route as DashboardPatientsRouteImport } from './routes/_dashboard/patients'
+import { Route as DashboardMedicalRecordsRouteImport } from './routes/_dashboard/medical-records'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
 
 const DashboardRoute = DashboardRouteImport.update({
@@ -40,6 +41,11 @@ const DashboardPatientsRoute = DashboardPatientsRouteImport.update({
   path: '/patients',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardMedicalRecordsRoute = DashboardMedicalRecordsRouteImport.update({
+  id: '/medical-records',
+  path: '/medical-records',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardAppointmentsRoute = DashboardAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
@@ -49,12 +55,14 @@ const DashboardAppointmentsRoute = DashboardAppointmentsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
   '/appointments': typeof DashboardAppointmentsRoute
+  '/medical-records': typeof DashboardMedicalRecordsRoute
   '/patients': typeof DashboardPatientsRoute
   '/prescriptions': typeof DashboardPrescriptionsRoute
   '/slots': typeof DashboardSlotsRoute
 }
 export interface FileRoutesByTo {
   '/appointments': typeof DashboardAppointmentsRoute
+  '/medical-records': typeof DashboardMedicalRecordsRoute
   '/patients': typeof DashboardPatientsRoute
   '/prescriptions': typeof DashboardPrescriptionsRoute
   '/slots': typeof DashboardSlotsRoute
@@ -64,6 +72,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_dashboard': typeof DashboardRouteWithChildren
   '/_dashboard/appointments': typeof DashboardAppointmentsRoute
+  '/_dashboard/medical-records': typeof DashboardMedicalRecordsRoute
   '/_dashboard/patients': typeof DashboardPatientsRoute
   '/_dashboard/prescriptions': typeof DashboardPrescriptionsRoute
   '/_dashboard/slots': typeof DashboardSlotsRoute
@@ -71,13 +80,26 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/appointments' | '/patients' | '/prescriptions' | '/slots'
+  fullPaths:
+    | '/'
+    | '/appointments'
+    | '/medical-records'
+    | '/patients'
+    | '/prescriptions'
+    | '/slots'
   fileRoutesByTo: FileRoutesByTo
-  to: '/appointments' | '/patients' | '/prescriptions' | '/slots' | '/'
+  to:
+    | '/appointments'
+    | '/medical-records'
+    | '/patients'
+    | '/prescriptions'
+    | '/slots'
+    | '/'
   id:
     | '__root__'
     | '/_dashboard'
     | '/_dashboard/appointments'
+    | '/_dashboard/medical-records'
     | '/_dashboard/patients'
     | '/_dashboard/prescriptions'
     | '/_dashboard/slots'
@@ -125,6 +147,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPatientsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/medical-records': {
+      id: '/_dashboard/medical-records'
+      path: '/medical-records'
+      fullPath: '/medical-records'
+      preLoaderRoute: typeof DashboardMedicalRecordsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/appointments': {
       id: '/_dashboard/appointments'
       path: '/appointments'
@@ -137,6 +166,7 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardAppointmentsRoute: typeof DashboardAppointmentsRoute
+  DashboardMedicalRecordsRoute: typeof DashboardMedicalRecordsRoute
   DashboardPatientsRoute: typeof DashboardPatientsRoute
   DashboardPrescriptionsRoute: typeof DashboardPrescriptionsRoute
   DashboardSlotsRoute: typeof DashboardSlotsRoute
@@ -145,6 +175,7 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAppointmentsRoute: DashboardAppointmentsRoute,
+  DashboardMedicalRecordsRoute: DashboardMedicalRecordsRoute,
   DashboardPatientsRoute: DashboardPatientsRoute,
   DashboardPrescriptionsRoute: DashboardPrescriptionsRoute,
   DashboardSlotsRoute: DashboardSlotsRoute,
