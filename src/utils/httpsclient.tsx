@@ -73,7 +73,7 @@ const getErrorMessage = (payload: unknown, fallback: string) => {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
   const { params, suppressToast, headers, body, ...init } = options;
-  const token = localStorage.getItem("token");
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const isFormData = body instanceof FormData;
 
   const response = await fetch(buildUrl(path, params), {
@@ -94,9 +94,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<A
     const message = getErrorMessage(payload, "Request failed");
 
     if (response.status === 401 && !path.includes("/auth/login")) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
     } else if (!suppressToast) {
       toast.error(message);
     }
