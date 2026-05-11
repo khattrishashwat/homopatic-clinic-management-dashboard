@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Calendar, Clock, Users, FileText, FolderHeart,
+  LayoutDashboard, Calendar, Clock, Users, FileText, FolderHeart, Folder,
   CreditCard, Package, ShoppingCart, Bell, BookOpen, Settings,
   Menu, X, Search, Moon, Sun, ChevronLeft, LogOut, User
 } from "lucide-react";
@@ -10,18 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const navItems = [
-  { title: "Dashboard", to: "/", icon: LayoutDashboard },
-  { title: "Appointments", to: "/appointments", icon: Calendar },
-  { title: "Slots", to: "/slots", icon: Clock },
-  { title: "Patients", to: "/patients", icon: Users },
-  { title: "Prescriptions", to: "/prescriptions", icon: FileText },
-  { title: "Medical Records", to: "/medical-records", icon: FolderHeart },
-  { title: "Payments", to: "/payments", icon: CreditCard },
-  { title: "Products", to: "/products", icon: Package },
-  { title: "Orders", to: "/orders", icon: ShoppingCart },
-  { title: "Notifications", to: "/notifications", icon: Bell },
-  { title: "Blogs", to: "/blogs", icon: BookOpen },
-  { title: "Settings", to: "/settings", icon: Settings },
+    { title: "Dashboard", to: "/", icon: LayoutDashboard },
+    { title: "Appointments", to: "/appointments", icon: Calendar },
+    { title: "Slots", to: "/slots", icon: Clock },
+    { title: "Patients", to: "/patients", icon: Users },
+    { title: "Prescriptions", to: "/prescriptions", icon: FileText },
+    { title: "Medical Records", to: "/medical-records", icon: FolderHeart },
+    { title: "Payments", to: "/payments", icon: CreditCard },
+    { title: "Products", to: "/products", icon: Package },
+    { title: "Orders", to: "/orders", icon: ShoppingCart },
+    { title: "Notifications", to: "/notifications", icon: Bell },
+    { title: "Blogs", to: "/blogs", icon: BookOpen },
+    { title: "Categories", to: "/categories", icon: Folder },
+    { title: "Settings", to: "/settings", icon: Settings },
 ];
 
 export function DashboardLayout() {

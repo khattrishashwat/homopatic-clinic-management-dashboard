@@ -21,6 +21,7 @@ import { Route as DashboardPatientsRouteImport } from './routes/_dashboard/patie
 import { Route as DashboardOrdersRouteImport } from './routes/_dashboard/orders'
 import { Route as DashboardNotificationsRouteImport } from './routes/_dashboard/notifications'
 import { Route as DashboardMedicalRecordsRouteImport } from './routes/_dashboard/medical-records'
+import { Route as DashboardCategoriesRouteImport } from './routes/_dashboard/categories'
 import { Route as DashboardBlogsRouteImport } from './routes/_dashboard/blogs'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
 
@@ -83,6 +84,11 @@ const DashboardMedicalRecordsRoute = DashboardMedicalRecordsRouteImport.update({
   path: '/medical-records',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardCategoriesRoute = DashboardCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardBlogsRoute = DashboardBlogsRouteImport.update({
   id: '/blogs',
   path: '/blogs',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/appointments': typeof DashboardAppointmentsRoute
   '/blogs': typeof DashboardBlogsRoute
+  '/categories': typeof DashboardCategoriesRoute
   '/medical-records': typeof DashboardMedicalRecordsRoute
   '/notifications': typeof DashboardNotificationsRoute
   '/orders': typeof DashboardOrdersRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/appointments': typeof DashboardAppointmentsRoute
   '/blogs': typeof DashboardBlogsRoute
+  '/categories': typeof DashboardCategoriesRoute
   '/medical-records': typeof DashboardMedicalRecordsRoute
   '/notifications': typeof DashboardNotificationsRoute
   '/orders': typeof DashboardOrdersRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_dashboard/appointments': typeof DashboardAppointmentsRoute
   '/_dashboard/blogs': typeof DashboardBlogsRoute
+  '/_dashboard/categories': typeof DashboardCategoriesRoute
   '/_dashboard/medical-records': typeof DashboardMedicalRecordsRoute
   '/_dashboard/notifications': typeof DashboardNotificationsRoute
   '/_dashboard/orders': typeof DashboardOrdersRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/appointments'
     | '/blogs'
+    | '/categories'
     | '/medical-records'
     | '/notifications'
     | '/orders'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/appointments'
     | '/blogs'
+    | '/categories'
     | '/medical-records'
     | '/notifications'
     | '/orders'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_dashboard/appointments'
     | '/_dashboard/blogs'
+    | '/_dashboard/categories'
     | '/_dashboard/medical-records'
     | '/_dashboard/notifications'
     | '/_dashboard/orders'
@@ -281,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardMedicalRecordsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/categories': {
+      id: '/_dashboard/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof DashboardCategoriesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/blogs': {
       id: '/_dashboard/blogs'
       path: '/blogs'
@@ -301,6 +320,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardAppointmentsRoute: typeof DashboardAppointmentsRoute
   DashboardBlogsRoute: typeof DashboardBlogsRoute
+  DashboardCategoriesRoute: typeof DashboardCategoriesRoute
   DashboardMedicalRecordsRoute: typeof DashboardMedicalRecordsRoute
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
   DashboardOrdersRoute: typeof DashboardOrdersRoute
@@ -316,6 +336,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAppointmentsRoute: DashboardAppointmentsRoute,
   DashboardBlogsRoute: DashboardBlogsRoute,
+  DashboardCategoriesRoute: DashboardCategoriesRoute,
   DashboardMedicalRecordsRoute: DashboardMedicalRecordsRoute,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
   DashboardOrdersRoute: DashboardOrdersRoute,

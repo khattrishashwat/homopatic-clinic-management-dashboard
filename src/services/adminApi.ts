@@ -85,13 +85,40 @@ export interface PaymentDto {
 export interface ProductDto {
   _id: string;
   name: string;
+  slug: string;
+  short_description?: string;
+  description?: string;
   price: number;
   compare_price?: number;
-  category?: string;
+  category?: string | CategoryDto;
   stock?: number;
   in_stock?: boolean;
   image?: string;
+  image_alt?: string;
+  gallery?: { url: string; alt: string }[];
   active?: boolean;
+  featured?: boolean;
+  sku?: string;
+  attributes?: {
+    shortDescription?: string;
+    benefits?: string[];
+    ingredients?: string[];
+    usage?: string;
+    faqs?: Array<{ q: string; a: string }>;
+    featured?: boolean;
+    recommended?: boolean;
+    durationWeeks?: number;
+  };
+  seo_title?: string;
+  seo_description?: string;
+  seo_keywords?: string[];
+  canonical_url?: string;
+  og_image?: string;
+  average_rating?: number;
+  total_reviews?: number;
+  created_by?: { name: string; email: string };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface OrderDto {
@@ -118,18 +145,44 @@ export interface BlogDto {
   title: string;
   slug: string;
   excerpt: string;
-  author?: string;
+  content?: string;
+  category?: string | CategoryDto;
+  featured_image?: string;
+  featured_image_alt?: string;
+  og_image?: string;
+  tags?: string[];
+  author: string;
+  author_bio?: string;
   published?: boolean;
-  createdAt?: string;
+  featured?: boolean;
+  views?: number;
   published_at?: string;
+  createdAt?: string;
+  seo_title?: string;
   meta_description?: string;
+  meta_keywords?: string[];
+  canonical_url?: string;
+  reading_time?: number;
+  created_by?: { name: string; email: string };
 }
 
-export interface SettingsDto {
-  appointment_settings?: Record<string, unknown>;
-  payment_settings?: Record<string, unknown>;
-  notification_settings?: Record<string, unknown>;
+export interface CategoryDto {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  image_alt?: string;
+  seo_title?: string;
+  seo_description?: string;
+  seo_keywords?: string[];
+  canonical_url?: string;
+  active: boolean;
+  type: "blog" | "product" | "both";
+  createdAt?: string;
+  updatedAt?: string;
 }
+
 
 export interface LoginResult {
   token: string;
@@ -199,9 +252,11 @@ export const paymentsApi = {
 
 export const productsApi = {
   list: async (params?: ListParams) => unwrapList<ProductDto>(await httpClient.get("/admin/products", { params })),
-  create: async (data: Partial<ProductDto>) => (await httpClient.post<ProductDto>("/admin/products", data)).data,
-  update: async (id: string, data: Partial<ProductDto>) => (await httpClient.patch<ProductDto>(`/admin/products/${id}`, data)).data,
+  create: async (data: Partial<ProductDto> | FormData) => (await httpClient.post<ProductDto>("/admin/products", data)).data,
+  getbyId: async (id: string) => (await httpClient.get<ProductDto>(`/admin/products/${id}`)).data,
+  update: async (id: string, data: Partial<ProductDto> | FormData) => (await httpClient.patch<ProductDto>(`/admin/products/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/products/${id}`)).data,
+  uploadImage: async (id: string, formData: FormData) => (await httpClient.patch<ProductDto>(`/admin/products/${id}`, formData)).data,
 };
 
 export const ordersApi = {
@@ -218,6 +273,13 @@ export const notificationsApi = {
 export const blogsApi = {
   list: async (params?: ListParams) => unwrapList<BlogDto>(await httpClient.get("/admin/blogs", { params })),
   delete: async (id: string) => (await httpClient.delete(`/admin/blogs/${id}`)).data,
+};
+
+export const categoriesApi = {
+  list: async () => (await httpClient.get<CategoryDto[]>("/admin/categories")).data,
+  create: async (data: Partial<CategoryDto> | FormData) => (await httpClient.post<CategoryDto>("/admin/categories", data)).data,
+  update: async (id: string, data: Partial<CategoryDto> | FormData) => (await httpClient.patch<CategoryDto>(`/admin/categories/${id}`, data)).data,
+  delete: async (id: string) => (await httpClient.delete(`/admin/categories/${id}`)).data,
 };
 
 export const settingsApi = {
