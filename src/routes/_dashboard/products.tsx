@@ -12,12 +12,6 @@ import {
   Upload,
   X,
   Image as ImageIcon,
-  Bold,
-  Italic,
-  List,
-  Link as LinkIcon,
-  Table,
-  AlignLeft,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,18 +53,18 @@ function ProductsPage() {
   const mainImageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-   const productsQuery = useQuery({
-     queryKey: ["products"],
-     queryFn: () => productsApi.list({ limit: 50 }),
-   });
-   const products = productsQuery.data?.data || [];
+  const productsQuery = useQuery({
+    queryKey: ["products"],
+    queryFn: () => productsApi.list({ limit: 50 }),
+  });
+  const products = productsQuery.data?.data || [];
 
-   // Fetch categories for dropdown
-   const { data: categoriesData } = useQuery({
-     queryKey: ["categories"],
-     queryFn: () => categoriesApi.list(),
-   });
-   const categories = (categoriesData || []).filter((c: CategoryDto) => c.type === 'product' || c.type === 'both');
+  // Fetch categories for dropdown
+  const { data: categoriesData } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => categoriesApi.list(),
+  });
+  const categories = (categoriesData || []).filter((c: CategoryDto) => c.type === 'product' || c.type === 'both');
 
   const saveMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -78,8 +72,6 @@ function ProductsPage() {
 
       // Basic fields
       productFormData.append("name", String(formData.get("name") || ""));
-      productFormData.append("slug", String(formData.get("slug") || ""));
-      productFormData.append("short_description", String(formData.get("short_description") || ""));
       productFormData.append("description", String(formData.get("description") || ""));
       productFormData.append("price", Number(formData.get("price") || 0));
       productFormData.append("compare_price", Number(formData.get("compare_price") || 0) || "");
@@ -87,20 +79,7 @@ function ProductsPage() {
       productFormData.append("sku", String(formData.get("sku") || ""));
       productFormData.append("category", String(formData.get("category") || ""));
 
-      // Image alt text
-      productFormData.append("image_alt", String(formData.get("image_alt") || ""));
-
-      // Attributes (JSON)
-      const attributes = {
-        benefits: formData.get("benefits")?.toString().split("\n").filter(Boolean) || [],
-        ingredients: formData.get("ingredients")?.toString().split("\n").filter(Boolean) || [],
-        usage: formData.get("usage") || "",
-        faqs: parseFAQs(formData.get("faqs")?.toString() || ""),
-        shortDescription: formData.get("short_description") || "",
-      };
-      productFormData.append("attributes", JSON.stringify(attributes));
-
-       // Status
+      // Status
       productFormData.append("active", formData.get("active") === "on" ? "true" : "false");
       productFormData.append("featured", formData.get("featured") === "on" ? "true" : "false");
 
@@ -132,19 +111,18 @@ function ProductsPage() {
     },
   });
 
-  const parseFAQs = (text: string) => {
-    return text
-      .split("\n")
-      .filter((line) => line.trim())
-      .map((line) => {
-        const [q, ...aParts] = line.split("?");
-        if (q && aParts.length > 0) {
-          return { q: q.trim() + "?", a: aParts.join("?").trim() };
-        }
-        return null;
-      })
-      .filter(Boolean);
-  };
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return productsApi.delete(id);
+    },
+    onSuccess: () => {
+      toast.success("Product deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to delete product");
+    },
+  });
 
   const resetForm = () => {
     setMainImageFile(null);
@@ -158,12 +136,6 @@ function ProductsPage() {
     if (product) {
       setEditing(product);
       setMainImagePreview(getAssetUrl(product.image));
-      const attrs = product.attributes || {};
-      const faqs = attrs.faqs || [];
-      const faqText = faqs.map((f: { q: string; a: string }) => `${f.q} ${f.a}`).join("\n");
-
-      // Pre-fill form via data attributes or state (simplified)
-      // In production, use a form library like react-hook-form
     } else {
       setEditing(null);
       setMainImagePreview(null);
@@ -227,6 +199,12 @@ function ProductsPage() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     saveMutation.mutate(new FormData(event.currentTarget));
+  };
+
+  const handleDelete = (productId: string, productName: string) => {
+    if (confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(productId);
+    }
   };
 
   return (
@@ -306,11 +284,8 @@ function ProductsPage() {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to delete this product?")) {
-                      deleteMutation.mutate(product._id);
-                    }
-                  }}
+                  onClick={() => handleDelete(product._id, product.name)}
+                  disabled={deleteMutation.isPending}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -394,7 +369,6 @@ function ProductsPage() {
                     onChange={handleMainImageSelect}
                     className="hidden"
                   />
-                   <Input name="image_alt" placeholder="Image alt text for accessibility" />
                 </div>
 
                 {/* Gallery Images */}
@@ -438,69 +412,47 @@ function ProductsPage() {
                   />
                 </div>
 
-                {/* Name & Slug */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Product Name *</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      required
-                      placeholder="e.g., Vitamin C Serum"
-                      defaultValue={editing?.name}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="slug">URL Slug</Label>
-                    <Input
-                      id="slug"
-                      name="slug"
-                      placeholder="auto-generated-if-empty"
-                      defaultValue={editing?.slug}
-                    />
-                  </div>
-                </div>
-
-                 {/* Category & SKU */}
-                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                     <Label htmlFor="category">Category</Label>
-                     <Select name="category" defaultValue={editing?.category?._id || editing?.category || ""}>
-                       <SelectTrigger>
-                         <SelectValue placeholder="Select category" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         {categories.map((cat: CategoryDto) => (
-                           <SelectItem key={cat._id} value={cat._id}>
-                             {cat.name}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   <div className="space-y-2">
-                     <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
-                     <Input
-                       id="sku"
-                       name="sku"
-                       placeholder="e.g., SKU-001"
-                       defaultValue={editing?.sku}
-                     />
-                   </div>
-                 </div>
-
-                {/* Description */}
+                {/* Product Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="short_description">Short Description</Label>
-                  <Textarea
-                    id="short_description"
-                    name="short_description"
-                    placeholder="Brief product summary"
-                    defaultValue={editing?.short_description}
-                    rows={2}
+                  <Label htmlFor="name">Product Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    required
+                    placeholder="e.g., Vitamin C Serum"
+                    defaultValue={editing?.name}
                   />
                 </div>
 
+                {/* Category & SKU */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Select name="category" defaultValue={editing?.category?._id || editing?.category || ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat: CategoryDto) => (
+                          <SelectItem key={cat._id} value={cat._id}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
+                    <Input
+                      id="sku"
+                      name="sku"
+                      placeholder="e.g., SKU-001"
+                      defaultValue={editing?.sku}
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
                 <div className="space-y-2">
                   <Label htmlFor="description">Full Description</Label>
                   <Textarea
@@ -552,7 +504,7 @@ function ProductsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="in_stock">Status</Label>
+                    <Label htmlFor="active">Status</Label>
                     <Select name="active" defaultValue={editing?.active !== false ? "true" : "false"}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -564,74 +516,10 @@ function ProductsPage() {
                     </Select>
                   </div>
                 </div>
+              </div>
+            )}
 
-                {/* Attributes */}
-                <div className="space-y-2">
-                  <Label htmlFor="benefits">Benefits (one per line)</Label>
-                  <Textarea
-                    id="benefits"
-                    name="benefits"
-                    placeholder="Benefit 1&#10;Benefit 2&#10;Benefit 3"
-                    defaultValue={editing?.attributes?.benefits?.join("\n") || ""}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ingredients">Ingredients (one per line)</Label>
-                  <Textarea
-                    id="ingredients"
-                    name="ingredients"
-                    placeholder="Ingredient 1&#10;Ingredient 2"
-                    defaultValue={editing?.attributes?.ingredients?.join("\n") || ""}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                     <Label htmlFor="category">Category</Label>
-                     <Select name="category" defaultValue={editing?.category?._id || editing?.category || ""}>
-                       <SelectTrigger>
-                         <SelectValue placeholder="Select category" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         {categories.map((cat: CategoryDto) => (
-                           <SelectItem key={cat._id} value={cat._id}>
-                             {cat.name}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="duration">Course Duration (weeks)</Label>
-                    <Input
-                      id="duration"
-                      name="durationWeeks"
-                      type="number"
-                      placeholder="8"
-                      defaultValue={editing?.attributes?.durationWeeks || 8}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="faqs">FAQs (Format: Question? Answer)</Label>
-                  <Textarea
-                    id="faqs"
-                    name="faqs"
-                    placeholder="What is this? This is a product for...&#10;How to use? Take as directed..."
-                    defaultValue={(editing?.attributes?.faqs || [])
-                      .map((f: { q: string; a: string }) => `${f.q} ${f.a}`)
-                      .join("\n")}
-                    rows={3}
-                  />
-                </div>
-               </div>
-             )}
-
-             {/* Advanced Tab */}
+            {/* Advanced Tab */}
             {activeTab === "advanced" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border p-4">

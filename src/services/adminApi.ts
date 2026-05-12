@@ -250,14 +250,32 @@ export const ordersApi = {
   updateStatus: async (id: string, status: string) => (await httpClient.patch<OrderDto>(`/admin/orders/${id}/status`, { status })).data,
 };
 
+// In your adminApi.ts or notifications service file
+
 export const notificationsApi = {
-  list: async (params?: ListParams) => unwrapList<NotificationDto>(await httpClient.get("/admin/notifications", { params })),
-  create: async (data: { title: string; message: string; whatsappNumber?: string; sendWhatsApp?: boolean }) =>
-    (await httpClient.post<NotificationDto>("/admin/notifications", data)).data,
+  list: (params?: { limit?: number; page?: number }) => 
+    httpClient.get<ApiResponse<NotificationDto[]>>("/admin/notifications", { params }),
+  
+  get: (id: string) => 
+    httpClient.get<ApiResponse<NotificationDto>>(`/admin/notifications/${id}`),
+  
+  create: (data: { title: string; message: string; type: string }) => 
+    httpClient.post<NotificationDto>("/admin/notifications", data),
+  
+  markAsRead: (id: string) => 
+    httpClient.patch<NotificationDto>(`/admin/notifications/${id}/read`),
+  
+  sendManual: (data: { title: string; message: string; type: string }) => 
+    httpClient.post<{ success: boolean; message: string }>("/admin/notifications", data),
+  
+  delete: (id: string) => 
+    httpClient.delete<{ message: string }>(`/admin/notifications/${id}`),
 };
 
 export const blogsApi = {
-  list: async (params?: ListParams) => unwrapList<BlogDto>(await httpClient.get("/admin/blogs", { params })),
+ list: async () => (await httpClient.get<BlogDto[]>("/admin/blogs")).data,
+  create: async (data: Partial<BlogDto> | FormData) => (await httpClient.post<BlogDto>("/admin/blogs", data)).data,
+  update: async (id: string, data: Partial<BlogDto> | FormData) => (await httpClient.patch<BlogDto>(`/admin/blogs/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/blogs/${id}`)).data,
 };
 

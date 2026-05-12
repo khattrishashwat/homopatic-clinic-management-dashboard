@@ -24,6 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import httpClient from "@/utils/httpsclient";
+import type { ApiResponse } from "@/utils/httpsclient";
 
 export const Route = createFileRoute("/_dashboard/categories")({
   component: CategoriesPage,
@@ -40,77 +42,65 @@ interface CategoryDto {
   updatedAt?: string;
 }
 
+interface CategoryFormData {
+  name: string;
+  description: string;
+  type: "blog" | "product" | "both";
+  active: boolean;
+}
+
 function CategoriesPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<CategoryDto | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState<CategoryFormData>({
+    name: "",
+    description: "",
+    type: "both",
+    active: true,
+  });
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const response = await fetch("http://localhost:5000/api/admin/categories", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      const data = await response.json();
-      return data;
+      const response = await httpClient.get<ApiResponse<CategoryDto[]>>("/admin/categories");
+      return response.data;
     },
   });
-  const categories = categoriesQuery.data?.data || [];
+  const categories = categoriesQuery.data || [];
 
   const saveMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const catFormData = new FormData();
-      catFormData.append("name", String(formData.get("name") || ""));
-      catFormData.append("description", String(formData.get("description") || ""));
-      catFormData.append("type", String(formData.get("type") || "both"));
-      catFormData.append("active", formData.get("active") === "on" ? "true" : "false");
-
-      const token = localStorage.getItem("token");
-      const url = editing
-        ? `http://localhost:5000/api/admin/categories/${editing._id}`
-        : "http://localhost:5000/api/admin/categories";
-
-      const response = await fetch(url, {
-        method: editing ? "PATCH" : "POST",
-        body: catFormData,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to save category");
+    mutationFn: async (data: CategoryFormData) => {
+      if (editing) {
+        const response = await httpClient.patch<CategoryDto>(`/admin/categories/${editing._id}`, data);
+        return response.data;
+      } else {
+        const response = await httpClient.post<CategoryDto>("/admin/categories", data);
+        return response.data;
       }
-
-      return response.json();
     },
     onSuccess: () => {
       toast.success(editing ? "Category updated" : "Category created");
       setShowForm(false);
       setEditing(null);
+      setFormData({ name: "", description: "", type: "both", active: true });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to save category");
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/admin/categories/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to delete");
-      return response.json();
+      const response = await httpClient.delete<{ message: string }>(`/admin/categories/${id}`);
+      return response.data;
     },
     onSuccess: () => {
       toast.success("Category deleted");
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to delete category");
     },
   });
@@ -118,10 +108,26 @@ function CategoriesPage() {
   const openForm = (category?: CategoryDto) => {
     if (category) {
       setEditing(category);
+      setFormData({
+        name: category.name,
+        description: category.description || "",
+        type: category.type,
+        active: category.active,
+      });
     } else {
       setEditing(null);
+      setFormData({ name: "", description: "", type: "both", active: true });
     }
     setShowForm(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveMutation.mutate(formData);
+  };
+
+  const handleInputChange = (field: keyof CategoryFormData, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -146,10 +152,6 @@ function CategoriesPage() {
         {categories.map((category: CategoryDto) => (
           <Card key={category._id} className="transition-shadow hover:shadow-md">
             <CardContent className="p-5">
-              <div className="mb-3 flex items-center justify-center h-24 rounded-lg bg-muted">
-                <ImageIcon className="h-8 w-8 text-muted-foreground" />
-              </div>
-
               <h3 className="font-semibold text-foreground">{category.name}</h3>
               <p className="text-xs text-muted-foreground line-clamp-2">{category.description}</p>
               <div className="mt-2 flex items-center gap-2">
@@ -160,6 +162,7 @@ function CategoriesPage() {
                 </span>
                 <span className="text-xs text-muted-foreground capitalize">{category.type}</span>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Slug: {category.slug}</p>
 
               <div className="mt-3 flex justify-end gap-1">
                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openForm(category)}>
@@ -201,21 +204,38 @@ function CategoriesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(new FormData(e.currentTarget)); }}>
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="name">Category Name *</Label>
-              <Input id="name" name="name" required placeholder="e.g., Skincare" defaultValue={editing?.name} />
+              <Input 
+                id="name" 
+                name="name" 
+                required 
+                placeholder="e.g., Skincare" 
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea id="description" name="description" placeholder="Brief description" defaultValue={editing?.description} rows={2} />
+              <Textarea 
+                id="description" 
+                name="description" 
+                placeholder="Brief description" 
+                value={formData.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                rows={2} 
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="type">Type</Label>
-                <Select name="type" defaultValue={editing?.type || "both"}>
+                <Select 
+                  value={formData.type} 
+                  onValueChange={(value) => handleInputChange("type", value as CategoryFormData["type"])}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -228,7 +248,10 @@ function CategoriesPage() {
               </div>
               <div className="flex items-end">
                 <div className="flex items-center space-x-2">
-                  <Switch name="active" defaultChecked={editing?.active ?? true} />
+                  <Switch 
+                    checked={formData.active}
+                    onCheckedChange={(checked) => handleInputChange("active", checked)}
+                  />
                   <Label>Active</Label>
                 </div>
               </div>
