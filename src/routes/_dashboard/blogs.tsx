@@ -80,19 +80,14 @@ function BlogsPage() {
       blogFormData.append("author", String(formData.get("author") || "Homeopathy Team"));
       blogFormData.append("author_bio", String(formData.get("author_bio") || ""));
 
-      // Tags
-      const tags = String(formData.get("tags") || "").split(",").map((t) => t.trim()).filter(Boolean);
-      blogFormData.append("tags", tags.join(","));
+       // Tags
+       const tags = String(formData.get("tags") || "").split(",").map((t) => t.trim()).filter(Boolean);
+       blogFormData.append("tags", tags.join(","));
 
-      // SEO fields
-      blogFormData.append("seo_title", String(formData.get("seo_title") || ""));
-      blogFormData.append("meta_description", String(formData.get("meta_description") || ""));
-      blogFormData.append("meta_keywords", String(formData.get("meta_keywords") || ""));
-      blogFormData.append("canonical_url", String(formData.get("canonical_url") || ""));
-      blogFormData.append("og_image", String(formData.get("og_image") || ""));
-      blogFormData.append("featured_image_alt", String(formData.get("featured_image_alt") || ""));
+       // featured_image_alt
+       blogFormData.append("featured_image_alt", String(formData.get("featured_image_alt") || ""));
 
-      // Status
+       // Status
       blogFormData.append("published", formData.get("published") === "on" ? "true" : "false");
       blogFormData.append("featured", formData.get("featured") === "on" ? "true" : "false");
 
@@ -277,17 +272,17 @@ function BlogsPage() {
         }
       }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit Blog" : "Create Blog"}</DialogTitle>
-            <DialogDescription>
-              Write and optimize your blog post for search engines
-            </DialogDescription>
-          </DialogHeader>
+           <DialogHeader>
+             <DialogTitle>{editing ? "Edit Blog" : "Create Blog"}</DialogTitle>
+             <DialogDescription>
+               Create and manage blog posts
+             </DialogDescription>
+           </DialogHeader>
 
           <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(new FormData(e.currentTarget)); }}>
             {/* Tab Navigation */}
             <div className="flex border-b">
-              {["content", "seo", "publish"].map((tab) => (
+              {["content", "publish"].map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -327,7 +322,7 @@ function BlogsPage() {
                     </div>
                   )}
                   <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
-                  <Input name="featured_image_alt" placeholder="Image alt text for accessibility & SEO" />
+                   <Input name="featured_image_alt" placeholder="Image alt text for accessibility" />
                 </div>
 
                 {/* Title */}
@@ -415,79 +410,10 @@ function BlogsPage() {
                     defaultValue={editing?.tags?.join(", ")}
                   />
                 </div>
-              </div>
-            )}
+               </div>
+             )}
 
-            {/* SEO Tab */}
-            {activeTab === "seo" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="seo_title">SEO Title</Label>
-                  <Input
-                    id="seo_title"
-                    name="seo_title"
-                    placeholder="Meta title (defaults to blog title)"
-                    defaultValue={editing?.seo_title}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="meta_description">Meta Description (max 160 chars)</Label>
-                  <Textarea
-                    id="meta_description"
-                    name="meta_description"
-                    placeholder="Brief description for search engines"
-                    defaultValue={editing?.meta_description}
-                    rows={3}
-                    maxLength={160}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="meta_keywords">Meta Keywords (comma-separated)</Label>
-                  <Textarea
-                    id="meta_keywords"
-                    name="meta_keywords"
-                    placeholder="keyword1, keyword2, keyword3"
-                    defaultValue={editing?.meta_keywords?.join(", ")}
-                    rows={2}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="canonical_url">Canonical URL</Label>
-                  <Input
-                    id="canonical_url"
-                    name="canonical_url"
-                    placeholder="https://example.com/blog/post"
-                    defaultValue={editing?.canonical_url}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="og_image">Open Graph Image URL</Label>
-                  <Input
-                    id="og_image"
-                    name="og_image"
-                    placeholder="URL for social media sharing"
-                    defaultValue={editing?.og_image || editing?.featured_image}
-                  />
-                </div>
-
-                <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-                  <p className="font-semibold">SEO Best Practices:</p>
-                  <ul className="mt-1 list-disc list-inside space-y-1">
-                    <li>Keep titles under 60 characters for best display</li>
-                    <li>Meta descriptions should be 150-160 characters</li>
-                    <li>Use 3-5 relevant keywords, naturally placed</li>
-                    <li>Include the main keyword in the first paragraph</li>
-                    <li>Use descriptive alt text for all images</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* Publish Tab */}
+             {/* Publish Tab */}
             {activeTab === "publish" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border p-4">

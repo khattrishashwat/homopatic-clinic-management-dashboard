@@ -100,14 +100,7 @@ function ProductsPage() {
       };
       productFormData.append("attributes", JSON.stringify(attributes));
 
-      // SEO fields
-      productFormData.append("seo_title", String(formData.get("seo_title") || ""));
-      productFormData.append("seo_description", String(formData.get("seo_description") || ""));
-      productFormData.append("seo_keywords", String(formData.get("seo_keywords") || ""));
-      productFormData.append("canonical_url", String(formData.get("canonical_url") || ""));
-      productFormData.append("og_image", String(formData.get("og_image") || ""));
-
-      // Status
+       // Status
       productFormData.append("active", formData.get("active") === "on" ? "true" : "false");
       productFormData.append("featured", formData.get("featured") === "on" ? "true" : "false");
 
@@ -335,17 +328,17 @@ function ProductsPage() {
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit Product" : "Add Product"}</DialogTitle>
-            <DialogDescription>
-              Fill in the product details, images, and SEO information
-            </DialogDescription>
-          </DialogHeader>
+           <DialogHeader>
+             <DialogTitle>{editing ? "Edit Product" : "Add Product"}</DialogTitle>
+             <DialogDescription>
+               Fill in the product details
+             </DialogDescription>
+           </DialogHeader>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Tab Navigation */}
             <div className="flex border-b">
-              {["basic", "seo", "advanced"].map((tab) => (
+              {["basic", "advanced"].map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -401,7 +394,7 @@ function ProductsPage() {
                     onChange={handleMainImageSelect}
                     className="hidden"
                   />
-                  <Input name="image_alt" placeholder="Image alt text for SEO" />
+                   <Input name="image_alt" placeholder="Image alt text for accessibility" />
                 </div>
 
                 {/* Gallery Images */}
@@ -635,78 +628,10 @@ function ProductsPage() {
                     rows={3}
                   />
                 </div>
-              </div>
-            )}
+               </div>
+             )}
 
-            {/* SEO Tab */}
-            {activeTab === "seo" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="seo_title">SEO Title</Label>
-                  <Input
-                    id="seo_title"
-                    name="seo_title"
-                    placeholder="Meta title (defaults to product name)"
-                    defaultValue={editing?.seo_title}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="seo_description">Meta Description (max 160 chars)</Label>
-                  <Textarea
-                    id="seo_description"
-                    name="seo_description"
-                    placeholder="Brief description for search engines"
-                    defaultValue={editing?.seo_description}
-                    rows={3}
-                    maxLength={160}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="seo_keywords">SEO Keywords (comma-separated)</Label>
-                  <Textarea
-                    id="seo_keywords"
-                    name="seo_keywords"
-                    placeholder="keyword1, keyword2, keyword3"
-                    defaultValue={editing?.seo_keywords?.join(", ")}
-                    rows={2}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="canonical_url">Canonical URL</Label>
-                  <Input
-                    id="canonical_url"
-                    name="canonical_url"
-                    placeholder="https://example.com/product"
-                    defaultValue={editing?.canonical_url}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="og_image">Open Graph Image URL</Label>
-                  <Input
-                    id="og_image"
-                    name="og_image"
-                    placeholder="URL for social media sharing"
-                    defaultValue={editing?.og_image || editing?.image}
-                  />
-                </div>
-
-                <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-                  <p className="font-semibold">SEO Tips:</p>
-                  <ul className="mt-1 list-disc list-inside space-y-1">
-                    <li>Keep titles under 60 characters</li>
-                    <li>Meta descriptions should be 150-160 characters</li>
-                    <li>Use relevant keywords naturally</li>
-                    <li>Canonical URL prevents duplicate content issues</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* Advanced Tab */}
+             {/* Advanced Tab */}
             {activeTab === "advanced" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border p-4">
