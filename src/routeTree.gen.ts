@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as DashboardIndexRouteImport } from './routes/_dashboard/index'
 import { Route as DashboardSlotsRouteImport } from './routes/_dashboard/slots'
@@ -20,9 +21,15 @@ import { Route as DashboardPatientsRouteImport } from './routes/_dashboard/patie
 import { Route as DashboardOrdersRouteImport } from './routes/_dashboard/orders'
 import { Route as DashboardNotificationsRouteImport } from './routes/_dashboard/notifications'
 import { Route as DashboardMedicalRecordsRouteImport } from './routes/_dashboard/medical-records'
+import { Route as DashboardCategoriesRouteImport } from './routes/_dashboard/categories'
 import { Route as DashboardBlogsRouteImport } from './routes/_dashboard/blogs'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/_dashboard',
   getParentRoute: () => rootRouteImport,
@@ -77,6 +84,11 @@ const DashboardMedicalRecordsRoute = DashboardMedicalRecordsRouteImport.update({
   path: '/medical-records',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardCategoriesRoute = DashboardCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardBlogsRoute = DashboardBlogsRouteImport.update({
   id: '/blogs',
   path: '/blogs',
@@ -90,8 +102,10 @@ const DashboardAppointmentsRoute = DashboardAppointmentsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
+  '/login': typeof LoginRoute
   '/appointments': typeof DashboardAppointmentsRoute
   '/blogs': typeof DashboardBlogsRoute
+  '/categories': typeof DashboardCategoriesRoute
   '/medical-records': typeof DashboardMedicalRecordsRoute
   '/notifications': typeof DashboardNotificationsRoute
   '/orders': typeof DashboardOrdersRoute
@@ -103,8 +117,10 @@ export interface FileRoutesByFullPath {
   '/slots': typeof DashboardSlotsRoute
 }
 export interface FileRoutesByTo {
+  '/login': typeof LoginRoute
   '/appointments': typeof DashboardAppointmentsRoute
   '/blogs': typeof DashboardBlogsRoute
+  '/categories': typeof DashboardCategoriesRoute
   '/medical-records': typeof DashboardMedicalRecordsRoute
   '/notifications': typeof DashboardNotificationsRoute
   '/orders': typeof DashboardOrdersRoute
@@ -119,8 +135,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_dashboard': typeof DashboardRouteWithChildren
+  '/login': typeof LoginRoute
   '/_dashboard/appointments': typeof DashboardAppointmentsRoute
   '/_dashboard/blogs': typeof DashboardBlogsRoute
+  '/_dashboard/categories': typeof DashboardCategoriesRoute
   '/_dashboard/medical-records': typeof DashboardMedicalRecordsRoute
   '/_dashboard/notifications': typeof DashboardNotificationsRoute
   '/_dashboard/orders': typeof DashboardOrdersRoute
@@ -136,8 +154,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
     | '/appointments'
     | '/blogs'
+    | '/categories'
     | '/medical-records'
     | '/notifications'
     | '/orders'
@@ -149,8 +169,10 @@ export interface FileRouteTypes {
     | '/slots'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/login'
     | '/appointments'
     | '/blogs'
+    | '/categories'
     | '/medical-records'
     | '/notifications'
     | '/orders'
@@ -164,8 +186,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_dashboard'
+    | '/login'
     | '/_dashboard/appointments'
     | '/_dashboard/blogs'
+    | '/_dashboard/categories'
     | '/_dashboard/medical-records'
     | '/_dashboard/notifications'
     | '/_dashboard/orders'
@@ -180,10 +204,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_dashboard': {
       id: '/_dashboard'
       path: ''
@@ -261,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardMedicalRecordsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/categories': {
+      id: '/_dashboard/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof DashboardCategoriesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/blogs': {
       id: '/_dashboard/blogs'
       path: '/blogs'
@@ -281,6 +320,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardAppointmentsRoute: typeof DashboardAppointmentsRoute
   DashboardBlogsRoute: typeof DashboardBlogsRoute
+  DashboardCategoriesRoute: typeof DashboardCategoriesRoute
   DashboardMedicalRecordsRoute: typeof DashboardMedicalRecordsRoute
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
   DashboardOrdersRoute: typeof DashboardOrdersRoute
@@ -296,6 +336,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAppointmentsRoute: DashboardAppointmentsRoute,
   DashboardBlogsRoute: DashboardBlogsRoute,
+  DashboardCategoriesRoute: DashboardCategoriesRoute,
   DashboardMedicalRecordsRoute: DashboardMedicalRecordsRoute,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
   DashboardOrdersRoute: DashboardOrdersRoute,
@@ -314,6 +355,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

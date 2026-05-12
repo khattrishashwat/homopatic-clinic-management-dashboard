@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Calendar, Clock, Users, FileText, FolderHeart,
+  LayoutDashboard, Calendar, Clock, Users, FileText, FolderHeart, Folder,
   CreditCard, Package, ShoppingCart, Bell, BookOpen, Settings,
   Menu, X, Search, Moon, Sun, ChevronLeft, LogOut, User
 } from "lucide-react";
@@ -10,34 +10,55 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const navItems = [
-  { title: "Dashboard", to: "/", icon: LayoutDashboard },
-  { title: "Appointments", to: "/appointments", icon: Calendar },
-  { title: "Slots", to: "/slots", icon: Clock },
-  { title: "Patients", to: "/patients", icon: Users },
-  { title: "Prescriptions", to: "/prescriptions", icon: FileText },
-  { title: "Medical Records", to: "/medical-records", icon: FolderHeart },
-  { title: "Payments", to: "/payments", icon: CreditCard },
-  { title: "Products", to: "/products", icon: Package },
-  { title: "Orders", to: "/orders", icon: ShoppingCart },
-  { title: "Notifications", to: "/notifications", icon: Bell },
-  { title: "Blogs", to: "/blogs", icon: BookOpen },
-  { title: "Settings", to: "/settings", icon: Settings },
+    { title: "Dashboard", to: "/", icon: LayoutDashboard },
+    { title: "Appointments", to: "/appointments", icon: Calendar },
+    { title: "Slots", to: "/slots", icon: Clock },
+    { title: "Patients", to: "/patients", icon: Users },
+    { title: "Prescriptions", to: "/prescriptions", icon: FileText },
+    { title: "Medical Records", to: "/medical-records", icon: FolderHeart },
+    { title: "Payments", to: "/payments", icon: CreditCard },
+    { title: "Products", to: "/products", icon: Package },
+    { title: "Orders", to: "/orders", icon: ShoppingCart },
+    { title: "Notifications", to: "/notifications", icon: Bell },
+    { title: "Blogs", to: "/blogs", icon: BookOpen },
+    { title: "Categories", to: "/categories", icon: Folder },
+    { title: "Settings", to: "/settings", icon: Settings },
 ];
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [user, setUser] = useState<{ name?: string; email?: string }>({});
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userData = JSON.parse(localStorage.getItem("user") || "{}") as { name?: string; email?: string };
+      setUser(userData);
+    }
+  }, []);
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle("dark");
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.toggle("dark", newDarkMode);
+    }
   };
 
   const isActive = (path: string) => {
     if (path === "/") return currentPath === "/";
     return currentPath.startsWith(path);
+  };
+
+  const logout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
+    navigate({ to: "/login" });
   };
 
   return (
@@ -128,10 +149,10 @@ export function DashboardLayout() {
                 <User className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-sidebar-foreground truncate">Dr. Admin</p>
-                <p className="text-[10px] text-muted-foreground truncate">admin@homeoclinic.com</p>
+                <p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name || "Admin"}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{user.email || "admin"}</p>
               </div>
-              <LogOut className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-destructive transition-colors" />
+              <LogOut onClick={logout} className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-destructive transition-colors" />
             </div>
           ) : (
             <div className="flex justify-center">
