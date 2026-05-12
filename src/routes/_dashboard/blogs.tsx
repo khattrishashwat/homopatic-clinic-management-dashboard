@@ -14,8 +14,6 @@ import {
   Italic,
   List,
   Link as LinkIcon,
-  Table,
-  AlignLeft,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,20 +45,20 @@ export const Route = createFileRoute("/_dashboard/blogs")({
 
 function BlogsPage() {
   const queryClient = useQueryClient();
-   const blogsQuery = useQuery({
-     queryKey: ["blogs"],
-     queryFn: () => blogsApi.list({ limit: 50 }),
-   });
-   const blogs = blogsQuery.data?.data || [];
+  const blogsQuery = useQuery({
+    queryKey: ["blogs"],
+    queryFn: () => blogsApi.list({ limit: 50 }),
+  });
+  const blogs = blogsQuery.data || [];
 
-   // Fetch categories for dropdown
-   const { data: categoriesData } = useQuery({
-     queryKey: ["categories"],
-     queryFn: () => categoriesApi.list(),
-   });
-   const categories = (categoriesData || []).filter((c: CategoryDto) => c.type === 'blog' || c.type === 'both');
+  // Fetch categories for dropdown
+  const { data: categoriesData } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => categoriesApi.list(),
+  });
+  const categories = (categoriesData || []).filter((c: CategoryDto) => c.type === 'blog' || c.type === 'both');
 
-   const [editing, setEditing] = useState<BlogDto | null>(null);
+  const [editing, setEditing] = useState<BlogDto | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -80,14 +78,14 @@ function BlogsPage() {
       blogFormData.append("author", String(formData.get("author") || "Homeopathy Team"));
       blogFormData.append("author_bio", String(formData.get("author_bio") || ""));
 
-       // Tags
-       const tags = String(formData.get("tags") || "").split(",").map((t) => t.trim()).filter(Boolean);
-       blogFormData.append("tags", tags.join(","));
+      // Tags
+      const tags = String(formData.get("tags") || "").split(",").map((t) => t.trim()).filter(Boolean);
+      blogFormData.append("tags", tags.join(","));
 
-       // featured_image_alt
-       blogFormData.append("featured_image_alt", String(formData.get("featured_image_alt") || ""));
+      // featured_image_alt
+      blogFormData.append("featured_image_alt", String(formData.get("featured_image_alt") || ""));
 
-       // Status
+      // Status
       blogFormData.append("published", formData.get("published") === "on" ? "true" : "false");
       blogFormData.append("featured", formData.get("featured") === "on" ? "true" : "false");
 
@@ -115,9 +113,9 @@ function BlogsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: blogsApi.delete,
+    mutationFn: (id: string) => blogsApi.delete(id),
     onSuccess: () => {
-      toast.success("Blog deleted");
+      toast.success("Blog deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["blogs"] });
     },
     onError: (error: any) => {
@@ -166,6 +164,12 @@ function BlogsPage() {
     setImageFile(null);
     setImagePreview(null);
     setActiveTab("content");
+  };
+
+  const handleDelete = (blogId: string, blogTitle: string) => {
+    if (confirm(`Are you sure you want to delete "${blogTitle}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(blogId);
+    }
   };
 
   // Simple rich text editor toolbar commands
@@ -238,11 +242,8 @@ function BlogsPage() {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to delete this blog?")) {
-                      deleteMutation.mutate(blog._id);
-                    }
-                  }}
+                  onClick={() => handleDelete(blog._id, blog.title)}
+                  disabled={deleteMutation.isPending}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -322,7 +323,7 @@ function BlogsPage() {
                     </div>
                   )}
                   <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
-                   <Input name="featured_image_alt" placeholder="Image alt text for accessibility" />
+                  <Input name="featured_image_alt" placeholder="Image alt text for accessibility" defaultValue={editing?.featured_image_alt} />
                 </div>
 
                 {/* Title */}
@@ -371,22 +372,22 @@ function BlogsPage() {
                   </p>
                 </div>
 
-                 {/* Category */}
-                 <div className="space-y-2">
-                   <Label htmlFor="category">Category</Label>
-                   <Select name="category" defaultValue={editing?.category?._id || editing?.category || ""}>
-                     <SelectTrigger>
-                       <SelectValue placeholder="Select category" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       {categories.map((cat: CategoryDto) => (
-                         <SelectItem key={cat._id} value={cat._id}>
-                           {cat.name}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                 </div>
+                {/* Category */}
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select name="category" defaultValue={editing?.category?._id || editing?.category || ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat: CategoryDto) => (
+                        <SelectItem key={cat._id} value={cat._id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Author */}
                 <div className="grid grid-cols-2 gap-4">
@@ -410,10 +411,10 @@ function BlogsPage() {
                     defaultValue={editing?.tags?.join(", ")}
                   />
                 </div>
-               </div>
-             )}
+              </div>
+            )}
 
-             {/* Publish Tab */}
+            {/* Publish Tab */}
             {activeTab === "publish" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border p-4">
