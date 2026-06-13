@@ -36,7 +36,7 @@ interface CategoryDto {
   name: string;
   slug: string;
   description?: string;
-  active: boolean;
+  status: "active" | "inactive";
   type: "blog" | "product" | "both";
   createdAt?: string;
   updatedAt?: string;
@@ -46,7 +46,7 @@ interface CategoryFormData {
   name: string;
   description: string;
   type: "blog" | "product" | "both";
-  active: boolean;
+  status: "active" | "inactive";
 }
 
 function CategoriesPage() {
@@ -57,7 +57,7 @@ function CategoriesPage() {
     name: "",
     description: "",
     type: "both",
-    active: true,
+    status: "active",
   });
 
   const categoriesQuery = useQuery({
@@ -83,7 +83,7 @@ function CategoriesPage() {
       toast.success(editing ? "Category updated" : "Category created");
       setShowForm(false);
       setEditing(null);
-      setFormData({ name: "", description: "", type: "both", active: true });
+      setFormData({ name: "", description: "", type: "both", status: "active" });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
     onError: (error: Error) => {
@@ -112,11 +112,11 @@ function CategoriesPage() {
         name: category.name,
         description: category.description || "",
         type: category.type,
-        active: category.active,
+        status: category.status,
       });
     } else {
       setEditing(null);
-      setFormData({ name: "", description: "", type: "both", active: true });
+      setFormData({ name: "", description: "", type: "both", status: "active" });
     }
     setShowForm(true);
   };
@@ -156,9 +156,9 @@ function CategoriesPage() {
               <p className="text-xs text-muted-foreground line-clamp-2">{category.description}</p>
               <div className="mt-2 flex items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  category.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                  category.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                 }`}>
-                  {category.active ? "Active" : "Inactive"}
+                  {category.status === "active" ? "Active" : "Inactive"}
                 </span>
                 <span className="text-xs text-muted-foreground capitalize">{category.type}</span>
               </div>
@@ -249,8 +249,8 @@ function CategoriesPage() {
               <div className="flex items-end">
                 <div className="flex items-center space-x-2">
                   <Switch 
-                    checked={formData.active}
-                    onCheckedChange={(checked) => handleInputChange("active", checked)}
+                    checked={formData.status === "active"}
+                    onCheckedChange={(checked) => handleInputChange("status", checked ? "active" : "inactive")}
                   />
                   <Label>Active</Label>
                 </div>
