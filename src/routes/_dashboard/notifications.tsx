@@ -23,24 +23,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/clinic/StatusBadge";
-import { notificationsApi } from "@/services/adminApi";
+import { notificationsApi, type NotificationDto } from "@/services/adminApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_dashboard/notifications")({
   component: NotificationsPage,
 });
-
-interface NotificationDto {
-  _id: string;
-  title: string;
-  message: string;
-  type: "info" | "success" | "warning" | "error";
-  read: boolean;
-  readAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 function NotificationsPage() {
   const queryClient = useQueryClient();

@@ -82,6 +82,17 @@ export interface PaymentDto {
   created_at?: string;
 }
 
+export interface CategoryDto {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  type?: "product" | "blog" | "general";
+  image?: string;
+  count?: number;
+  active?: boolean;
+}
+
 export interface ProductDto {
   _id: string;
   name: string;
@@ -98,6 +109,7 @@ export interface ProductDto {
   gallery?: { url: string; alt: string }[];
   active?: boolean;
   featured?: boolean;
+  recommended?: boolean;
   sku?: string;
   attributes?: {
     shortDescription?: string;
@@ -112,6 +124,43 @@ export interface ProductDto {
   average_rating?: number;
   total_reviews?: number;
   created_by?: { name: string; email: string };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BlogDto {
+  _id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt?: string;
+  category?: string | CategoryDto;
+  tags?: string[];
+  image?: string;
+  featured?: boolean;
+  published?: boolean;
+  status?: string;
+  author?: { name: string; email?: string } | string;
+  views?: number;
+  readTime?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ReviewDto {
+  _id: string;
+  review_type: "product_review" | "blog_comment" | "google_review" | "testimonial" | "patient_story";
+  target_id?: string;
+  target_slug?: string;
+  reviewer_name: string;
+  reviewer_email?: string;
+  rating: number;
+  title?: string;
+  comment: string;
+  profileImage?: string;
+  relativeTime?: string;
+  approved: boolean;
+  order?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -131,65 +180,46 @@ export interface NotificationDto {
   _id: string;
   title: string;
   message: string;
+  type: "info" | "success" | "warning" | "error";
   read: boolean;
-  createdAt?: string;
-}
-
-export interface BlogDto {
-  _id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  content?: string;
-  category?: string | CategoryDto;
-   featured_image?: string;
-   featured_image_alt?: string;
-   tags?: string[];
-   author: string;
-   author_bio?: string;
-   published?: boolean;
-   featured?: boolean;
-   views?: number;
-   published_at?: string;
-   createdAt?: string;
-   reading_time?: number;
-  created_by?: { name: string; email: string };
-}
-
-export interface CategoryDto {
-  _id: string;
-  name: string;
-  slug: string;
-   description?: string;
-   image?: string;
-   image_alt?: string;
-   active: boolean;
-  type: "blog" | "product" | "both";
-  createdAt?: string;
+  readAt?: string;
+  createdAt: string;
   updatedAt?: string;
 }
 
+export interface ChatbotSettingsDto {
+  enabled: boolean;
+  welcome_message: string;
+  suggested_questions: string[];
+}
 
 export interface LoginResult {
   token: string;
   user: AdminUser;
 }
 
-const unwrapList = <T>(response: ApiResponse<T[] | { data?: T[]; pagination?: PaginationMeta }>): ListResult<T> => {
-  if (Array.isArray(response.data)) {
-    return { data: response.data, pagination: response.pagination };
+function unwrapList<T>(res: ApiResponse<T[]> | { data?: { data?: T[]; pagination?: PaginationMeta; [key: string]: unknown } | T[] }): ListResult<T> {
+  const payload = (res as any)?.data !== undefined ? (res as any).data : res;
+  if (Array.isArray(payload)) {
+    return { data: payload };
   }
-
-  return {
-    data: response.data.data || [],
-    pagination: response.data.pagination || response.pagination,
-  };
-};
+  if (payload && Array.isArray((payload as any).data)) {
+    return { data: (payload as any).data, pagination: (payload as any).pagination };
+  }
+  return { data: [] };
+}
 
 export const authApi = {
   login: async (email: string, password: string): Promise<LoginResult> => {
-    const response = await httpClient.post<unknown>("/auth/login", { email, password }, { suppressToast: true });
-    return { token: response.token || "", user: response.user as AdminUser };
+    const res = await httpClient.post<LoginResult>("/admin/auth/login", { email, password });
+    return res.data;
+  },
+  me: async (): Promise<AdminUser> => {
+    const res = await httpClient.get<AdminUser>("/admin/auth/me");
+    return res.data;
+  },
+  logout: async (): Promise<void> => {
+    await httpClient.post("/admin/auth/logout");
   },
 };
 
@@ -250,40 +280,40 @@ export const ordersApi = {
   updateStatus: async (id: string, status: string) => (await httpClient.patch<OrderDto>(`/admin/orders/${id}/status`, { status })).data,
 };
 
-// In your adminApi.ts or notifications service file
-
 export const notificationsApi = {
-  list: (params?: { limit?: number; page?: number }) => 
-    httpClient.get<ApiResponse<NotificationDto[]>>("/admin/notifications", { params }),
-  
+  list: async (params?: ListParams) =>
+    unwrapList<NotificationDto>(await httpClient.get("/admin/notifications", { params })),
   get: (id: string) => 
     httpClient.get<ApiResponse<NotificationDto>>(`/admin/notifications/${id}`),
-  
   create: (data: { title: string; message: string; type: string }) => 
     httpClient.post<NotificationDto>("/admin/notifications", data),
-  
   markAsRead: (id: string) => 
     httpClient.patch<NotificationDto>(`/admin/notifications/${id}/read`),
-  
   sendManual: (data: { title: string; message: string; type: string }) => 
     httpClient.post<{ success: boolean; message: string }>("/admin/notifications", data),
-  
   delete: (id: string) => 
     httpClient.delete<{ message: string }>(`/admin/notifications/${id}`),
 };
 
 export const blogsApi = {
- list: async () => (await httpClient.get<BlogDto[]>("/admin/blogs")).data,
+  list: async (params?: ListParams) => unwrapList<BlogDto>(await httpClient.get("/admin/blogs", { params })),
   create: async (data: Partial<BlogDto> | FormData) => (await httpClient.post<BlogDto>("/admin/blogs", data)).data,
   update: async (id: string, data: Partial<BlogDto> | FormData) => (await httpClient.patch<BlogDto>(`/admin/blogs/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/blogs/${id}`)).data,
 };
 
 export const categoriesApi = {
-  list: async () => (await httpClient.get<CategoryDto[]>("/admin/categories")).data,
+  list: async (params?: ListParams) => unwrapList<CategoryDto>(await httpClient.get("/admin/categories", { params })),
   create: async (data: Partial<CategoryDto> | FormData) => (await httpClient.post<CategoryDto>("/admin/categories", data)).data,
   update: async (id: string, data: Partial<CategoryDto> | FormData) => (await httpClient.patch<CategoryDto>(`/admin/categories/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/categories/${id}`)).data,
+};
+
+export const reviewsApi = {
+  list: async (params?: ListParams) => unwrapList<ReviewDto>(await httpClient.get("/admin/reviews", { params })),
+  create: async (data: Partial<ReviewDto>) => (await httpClient.post<ReviewDto>("/admin/reviews", data)).data,
+  update: async (id: string, data: Partial<ReviewDto>) => (await httpClient.patch<ReviewDto>(`/admin/reviews/${id}`, data)).data,
+  delete: async (id: string) => (await httpClient.delete(`/admin/reviews/${id}`)).data,
 };
 
 export const settingsApi = {
@@ -293,4 +323,6 @@ export const settingsApi = {
   updatePayment: async (data: Record<string, unknown>) => (await httpClient.patch<Record<string, unknown>>("/admin/settings/payment", data)).data,
   getNotification: async () => (await httpClient.get<Record<string, unknown>>("/admin/settings/notification")).data,
   updateNotification: async (data: Record<string, unknown>) => (await httpClient.patch<Record<string, unknown>>("/admin/settings/notification", data)).data,
+  getChatbot: async () => (await httpClient.get<ChatbotSettingsDto>("/admin/settings/chatbot")).data,
+  updateChatbot: async (data: Partial<ChatbotSettingsDto>) => (await httpClient.patch<ChatbotSettingsDto>("/admin/settings/chatbot", data)).data,
 };

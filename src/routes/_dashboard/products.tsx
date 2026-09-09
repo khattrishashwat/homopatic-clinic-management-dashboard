@@ -33,13 +33,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { productsApi, categoriesApi, type CategoryDto } from "@/services/adminApi";
+import { productsApi, categoriesApi, type CategoryDto, type ProductDto } from "@/services/adminApi";
 import { formatCurrency } from "@/lib/format";
 import { getAssetUrl } from "@/utils/httpsclient";
 
 export const Route = createFileRoute("/_dashboard/products")({
   component: ProductsPage,
 });
+
+const getCategoryName = (category?: string | CategoryDto) =>
+  typeof category === "object" && category ? category.name : "Uncategorized";
+
+const getCategoryId = (category?: string | CategoryDto) =>
+  typeof category === "object" && category ? category._id : category || "";
 
 function ProductsPage() {
   const queryClient = useQueryClient();
@@ -64,7 +70,7 @@ function ProductsPage() {
     queryKey: ["categories"],
     queryFn: () => categoriesApi.list(),
   });
-  const categories = (categoriesData || []).filter((c: CategoryDto) => c.type === 'product' || c.type === 'both');
+  const categories = (categoriesData?.data || []).filter((c: CategoryDto) => c.type === "product" || c.type === "both" || !c.type);
 
   const saveMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -73,15 +79,16 @@ function ProductsPage() {
       // Basic fields
       productFormData.append("name", String(formData.get("name") || ""));
       productFormData.append("description", String(formData.get("description") || ""));
-      productFormData.append("price", Number(formData.get("price") || 0));
-      productFormData.append("compare_price", Number(formData.get("compare_price") || 0) || "");
-      productFormData.append("stock", Number(formData.get("stock") || 0));
+      productFormData.append("price", String(Number(formData.get("price") || 0)));
+      productFormData.append("compare_price", String(Number(formData.get("compare_price") || 0) || ""));
+      productFormData.append("stock", String(Number(formData.get("stock") || 0)));
       productFormData.append("sku", String(formData.get("sku") || ""));
       productFormData.append("category", String(formData.get("category") || ""));
 
-      // Status
+      // Status & Visibility
       productFormData.append("active", formData.get("active") === "on" ? "true" : "false");
       productFormData.append("featured", formData.get("featured") === "on" ? "true" : "false");
+      productFormData.append("recommended", formData.get("recommended") === "on" ? "true" : "false");
 
       // Images
       if (mainImageFile) {
@@ -241,25 +248,44 @@ function ProductsPage() {
           <Card key={product._id} className="transition-shadow hover:shadow-md">
             <CardContent className="p-5">
               {product.image ? (
-                <div className="mb-3 h-40 w-full overflow-hidden rounded-lg bg-gray-100">
+                <div className="relative mb-3 h-40 w-full overflow-hidden rounded-lg bg-gray-100">
                   <img
                     src={getAssetUrl(product.image)}
                     alt={product.name}
                     className="h-full w-full object-cover"
                   />
+                  <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end">
+                    {product.featured && (
+                      <span className="rounded-full bg-amber-500 text-white text-[10px] font-semibold px-2 py-0.5 shadow">
+                        Featured
+                      </span>
+                    )}
+                    {product.recommended && (
+                      <span className="rounded-full bg-emerald-600 text-white text-[10px] font-semibold px-2 py-0.5 shadow">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="mb-3 flex items-start justify-between">
                   <div className="rounded-xl bg-primary/10 p-2.5">
                     <Package className="h-5 w-5 text-primary" />
                   </div>
-                  {product.featured && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
+                  <div className="flex items-center gap-1">
+                    {product.featured && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
+                    {product.recommended && (
+                      <span className="rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-0.5">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 
               <h3 className="font-semibold text-foreground line-clamp-2">{product.name}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                {product.category?.name || "Uncategorized"} · Stock: {product.stock || 0}
+                {getCategoryName(product.category)} · Stock: {product.stock || 0}
               </p>
 
               <div className="mt-2 flex items-baseline gap-2">
@@ -303,12 +329,12 @@ function ProductsPage() {
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-           <DialogHeader>
-             <DialogTitle>{editing ? "Edit Product" : "Add Product"}</DialogTitle>
-             <DialogDescription>
-               Fill in the product details
-             </DialogDescription>
-           </DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Product" : "Add Product"}</DialogTitle>
+            <DialogDescription>
+              Fill in the product details
+            </DialogDescription>
+          </DialogHeader>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Tab Navigation */}
@@ -428,7 +454,7 @@ function ProductsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
-                    <Select name="category" defaultValue={editing?.category?._id || editing?.category || ""}>
+                    <Select name="category" defaultValue={getCategoryId(editing?.category)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
@@ -532,6 +558,19 @@ function ProductsPage() {
                   <Switch
                     name="featured"
                     defaultChecked={editing?.featured}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <Label htmlFor="recommended" className="text-base">Recommended Product</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Display under &quot;Recommended Products&quot; on website Home page
+                    </p>
+                  </div>
+                  <Switch
+                    name="recommended"
+                    defaultChecked={editing?.recommended}
                   />
                 </div>
 

@@ -43,20 +43,26 @@ export const Route = createFileRoute("/_dashboard/blogs")({
   component: BlogsPage,
 });
 
+const getCategoryName = (category?: string | CategoryDto) =>
+  typeof category === "object" && category ? category.name : "Uncategorized";
+
+const getCategoryId = (category?: string | CategoryDto) =>
+  typeof category === "object" && category ? category._id : category || "";
+
 function BlogsPage() {
   const queryClient = useQueryClient();
   const blogsQuery = useQuery({
     queryKey: ["blogs"],
     queryFn: () => blogsApi.list({ limit: 50 }),
   });
-  const blogs = blogsQuery.data || [];
+  const blogs = blogsQuery.data?.data || [];
 
   // Fetch categories for dropdown
   const { data: categoriesData } = useQuery({
     queryKey: ["categories"],
     queryFn: () => categoriesApi.list(),
   });
-  const categories = (categoriesData || []).filter((c: CategoryDto) => c.type === 'blog' || c.type === 'both');
+  const categories = (categoriesData?.data || []).filter((c: CategoryDto) => c.type === 'blog' || c.type === 'both');
 
   const [editing, setEditing] = useState<BlogDto | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -227,7 +233,7 @@ function BlogsPage() {
               <h3 className="font-semibold text-foreground line-clamp-2">{blog.title}</h3>
               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{blog.excerpt}</p>
               <p className="mt-2 font-mono text-xs text-primary">/{blog.slug}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Category: {blog.category?.name || "Uncategorized"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Category: {getCategoryName(blog.category)}</p>
 
               <div className="mt-3 flex justify-end gap-1">
                 <Button
@@ -375,7 +381,7 @@ function BlogsPage() {
                 {/* Category */}
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select name="category" defaultValue={editing?.category?._id || editing?.category || ""}>
+                  <Select name="category" defaultValue={getCategoryId(editing?.category)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>

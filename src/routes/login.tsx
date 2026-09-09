@@ -27,8 +27,19 @@ function LoginPage() {
       toast.success("Login successful");
       navigate({ to: "/" });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => {
+      toast.error(error.message || "Login failed. Please check your credentials.");
+    },
   });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    loginMutation.mutate();
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#004732] via-[#006b4d] to-[#004732] px-4">
@@ -55,13 +66,7 @@ function LoginPage() {
         </CardHeader>
         
         <CardContent>
-          <form
-            className="space-y-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              loginMutation.mutate();
-            }}
-          >
+          <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-gray-700 font-medium">
                 Email Address
@@ -71,9 +76,10 @@ function LoginPage() {
                 type="email"
                 placeholder="admin@example.com"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 className="border-gray-300 focus:border-[#004732] focus:ring-[#004732]"
                 required
+                disabled={loginMutation.isPending}
               />
             </div>
             
@@ -87,9 +93,10 @@ function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="border-gray-300 focus:border-[#004732] focus:ring-[#004732] pr-10"
                   required
+                  disabled={loginMutation.isPending}
                 />
                 <button
                   type="button"

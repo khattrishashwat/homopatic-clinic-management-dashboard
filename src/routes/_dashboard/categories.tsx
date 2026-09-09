@@ -24,29 +24,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import httpClient from "@/utils/httpsclient";
-import type { ApiResponse } from "@/utils/httpsclient";
+import { categoriesApi, type CategoryDto } from "@/services/adminApi";
 
 export const Route = createFileRoute("/_dashboard/categories")({
   component: CategoriesPage,
 });
 
-interface CategoryDto {
-  _id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  status: "active" | "inactive";
-  type: "blog" | "product" | "both";
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 interface CategoryFormData {
   name: string;
   description: string;
   type: "blog" | "product" | "both";
-  status: "active" | "inactive";
+  active: boolean;
 }
 
 function CategoriesPage() {
@@ -57,33 +45,28 @@ function CategoriesPage() {
     name: "",
     description: "",
     type: "both",
-    status: "active",
+    active: true,
   });
 
   const categoriesQuery = useQuery({
     queryKey: ["categories"],
-    queryFn: async () => {
-      const response = await httpClient.get<ApiResponse<CategoryDto[]>>("/admin/categories");
-      return response.data;
-    },
+    queryFn: () => categoriesApi.list(),
   });
-  const categories = categoriesQuery.data || [];
+  const categories = categoriesQuery.data?.data || [];
 
   const saveMutation = useMutation({
     mutationFn: async (data: CategoryFormData) => {
       if (editing) {
-        const response = await httpClient.patch<CategoryDto>(`/admin/categories/${editing._id}`, data);
-        return response.data;
+        return categoriesApi.update(editing._id, data);
       } else {
-        const response = await httpClient.post<CategoryDto>("/admin/categories", data);
-        return response.data;
+        return categoriesApi.create(data);
       }
     },
     onSuccess: () => {
       toast.success(editing ? "Category updated" : "Category created");
       setShowForm(false);
       setEditing(null);
-      setFormData({ name: "", description: "", type: "both", status: "active" });
+      setFormData({ name: "", description: "", type: "both", active: true });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
     onError: (error: Error) => {
@@ -93,8 +76,7 @@ function CategoriesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await httpClient.delete<{ message: string }>(`/admin/categories/${id}`);
-      return response.data;
+      return categoriesApi.delete(id);
     },
     onSuccess: () => {
       toast.success("Category deleted");
@@ -112,11 +94,11 @@ function CategoriesPage() {
         name: category.name,
         description: category.description || "",
         type: category.type,
-        status: category.status,
+        active: category.active,
       });
     } else {
       setEditing(null);
-      setFormData({ name: "", description: "", type: "both", status: "active" });
+      setFormData({ name: "", description: "", type: "both", active: true });
     }
     setShowForm(true);
   };
@@ -156,9 +138,9 @@ function CategoriesPage() {
               <p className="text-xs text-muted-foreground line-clamp-2">{category.description}</p>
               <div className="mt-2 flex items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  category.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                  category.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                 }`}>
-                  {category.status === "active" ? "Active" : "Inactive"}
+                  {category.active ? "Active" : "Inactive"}
                 </span>
                 <span className="text-xs text-muted-foreground capitalize">{category.type}</span>
               </div>
@@ -249,8 +231,8 @@ function CategoriesPage() {
               <div className="flex items-end">
                 <div className="flex items-center space-x-2">
                   <Switch 
-                    checked={formData.status === "active"}
-                    onCheckedChange={(checked) => handleInputChange("status", checked ? "active" : "inactive")}
+                    checked={formData.active}
+                    onCheckedChange={(checked) => handleInputChange("active", checked)}
                   />
                   <Label>Active</Label>
                 </div>

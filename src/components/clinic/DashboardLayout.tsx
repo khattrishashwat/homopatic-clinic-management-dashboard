@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Calendar, Clock, Users, FileText, FolderHeart, Folder,
-  CreditCard, Package, ShoppingCart, Bell, BookOpen, Settings,
+  CreditCard, Package, ShoppingCart, Bell, BookOpen, Settings, Star,
   Menu, X, Search, Moon, Sun, ChevronLeft, LogOut, User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ const navItems = [
     { title: "Notifications", to: "/notifications", icon: Bell },
     { title: "Blogs", to: "/blogs", icon: BookOpen },
     { title: "Categories", to: "/categories", icon: Folder },
+    { title: "Reviews", to: "/reviews", icon: Star },
     { title: "Settings", to: "/settings", icon: Settings },
 ];
 
