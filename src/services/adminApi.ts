@@ -211,12 +211,20 @@ function unwrapList<T>(res: ApiResponse<T[]> | { data?: { data?: T[]; pagination
 
 export const authApi = {
   login: async (email: string, password: string): Promise<LoginResult> => {
-    const res = await httpClient.post<LoginResult>("/admin/auth/login", { email, password });
-    return res.data;
+    const res = await httpClient.post<LoginResult>(
+      "/admin/auth/login",
+      { email, password },
+      { suppressToast: true }
+    );
+    const payload = res as any;
+    const token = payload?.token || payload?.data?.token || "";
+    const user = payload?.user || payload?.data?.user || payload?.data || null;
+    return { token, user };
   },
   me: async (): Promise<AdminUser> => {
     const res = await httpClient.get<AdminUser>("/admin/auth/me");
-    return res.data;
+    const payload = res as any;
+    return payload?.user || payload?.data?.user || payload?.data;
   },
   logout: async (): Promise<void> => {
     await httpClient.post("/admin/auth/logout");
