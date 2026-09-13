@@ -16,6 +16,7 @@ import { Route as DashboardBlogsRouteImport } from './routes/_dashboard/blogs'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
 import { Route as DashboardFaqsRouteImport } from './routes/_dashboard/faqs'
 import { Route as DashboardChatbotRouteImport } from './routes/_dashboard/chatbot'
+import { Route as DashboardReviewsRouteImport } from './routes/_dashboard/reviews'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -101,6 +102,11 @@ const DashboardChatbotRoute = DashboardChatbotRouteImport.update({
   path: '/chatbot',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardReviewsRoute = DashboardReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/slots': typeof DashboardSlotsRoute
   '/faqs': typeof DashboardFaqsRoute
   '/chatbot': typeof DashboardChatbotRoute
+  '/reviews': typeof DashboardReviewsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/slots': typeof DashboardSlotsRoute
   '/faqs': typeof DashboardFaqsRoute
   '/chatbot': typeof DashboardChatbotRoute
+  '/reviews': typeof DashboardReviewsRoute
   '/': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/_dashboard/slots': typeof DashboardSlotsRoute
   '/_dashboard/faqs': typeof DashboardFaqsRoute
   '/_dashboard/chatbot': typeof DashboardChatbotRoute
+  '/_dashboard/reviews': typeof DashboardReviewsRoute
   '/_dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/slots'
     | '/faqs'
     | '/chatbot'
+    | '/reviews'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/slots'
     | '/faqs'
     | '/chatbot'
+    | '/reviews'
     | '/'
   id:
     | '__root__'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/_dashboard/slots'
     | '/_dashboard/faqs'
     | '/_dashboard/chatbot'
+    | '/_dashboard/reviews'
     | '/_dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -342,6 +354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardChatbotRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/reviews': {
+      id: '/_dashboard/reviews'
+      path: '/reviews'
+      fullPath: '/reviews'
+      preLoaderRoute: typeof DashboardReviewsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
@@ -360,6 +379,7 @@ interface DashboardRouteChildren {
   DashboardSlotsRoute: typeof DashboardSlotsRoute
   DashboardFaqsRoute: typeof DashboardFaqsRoute
   DashboardChatbotRoute: typeof DashboardChatbotRoute
+  DashboardReviewsRoute: typeof DashboardReviewsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
@@ -378,6 +398,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardSlotsRoute: DashboardSlotsRoute,
   DashboardFaqsRoute: DashboardFaqsRoute,
   DashboardChatbotRoute: DashboardChatbotRoute,
+  DashboardReviewsRoute: DashboardReviewsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

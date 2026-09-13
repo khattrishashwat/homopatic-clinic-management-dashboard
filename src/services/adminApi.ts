@@ -340,9 +340,15 @@ export const categoriesApi = {
 };
 
 export const reviewsApi = {
-  list: async (params?: ListParams) => unwrapList<ReviewDto>(await httpClient.get("/admin/reviews", { params })),
-  create: async (data: Partial<ReviewDto>) => (await httpClient.post<ReviewDto>("/admin/reviews", data)).data,
-  update: async (id: string, data: Partial<ReviewDto>) => (await httpClient.patch<ReviewDto>(`/admin/reviews/${id}`, data)).data,
+  list: async (params?: ListParams & { review_type?: string; type?: string }) => {
+    const p = { ...params };
+    if (p.review_type && !p.type) {
+      p.type = p.review_type;
+    }
+    return unwrapList<ReviewDto>(await httpClient.get("/admin/reviews", { params: p }));
+  },
+  create: async (data: Partial<ReviewDto> | Record<string, unknown>) => (await httpClient.post<ReviewDto>("/admin/reviews", data)).data,
+  update: async (id: string, data: Partial<ReviewDto> | Record<string, unknown>) => (await httpClient.patch<ReviewDto>(`/admin/reviews/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/reviews/${id}`)).data,
 };
 

@@ -195,10 +195,13 @@ function ReviewsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {reviews.map((review) => {
-          const typeInfo = TYPE_LABELS[review.review_type] || {
-            label: review.review_type,
+          const typeKey = (review.review_type || (review as any).type || "google_review") as keyof typeof TYPE_LABELS;
+          const typeInfo = TYPE_LABELS[typeKey] || {
+            label: String(typeKey).replace(/_/g, " "),
             color: "bg-gray-100 text-gray-800",
           };
+          const reviewerName = review.reviewer_name || (review as any).name || "Anonymous";
+          const reviewComment = review.comment || (review as any).message || "";
 
           return (
             <Card key={review._id} className="relative transition-all hover:shadow-md border">
@@ -213,7 +216,7 @@ function ReviewsPage() {
                         <Star
                           key={i}
                           className={`h-3.5 w-3.5 ${
-                            i < review.rating
+                            i < (review.rating || 5)
                               ? "fill-amber-400 text-amber-400"
                               : "fill-gray-200 text-gray-200 dark:fill-gray-700 dark:text-gray-700"
                           }`}
@@ -229,16 +232,18 @@ function ReviewsPage() {
                   )}
 
                   <p className="text-xs text-muted-foreground line-clamp-4 leading-relaxed italic mb-4">
-                    &ldquo;{review.comment}&rdquo;
+                    &ldquo;{reviewComment}&rdquo;
                   </p>
                 </div>
 
                 <div className="pt-3 border-t flex items-center justify-between">
                   <div>
                     <div className="font-semibold text-xs text-foreground flex items-center gap-1">
-                      {review.reviewer_name}
+                      {reviewerName}
                       {review.approved && (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 inline" title="Approved" />
+                        <span title="Approved">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 inline" />
+                        </span>
                       )}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
@@ -279,7 +284,7 @@ function ReviewsPage() {
                       variant="ghost"
                       className="h-8 w-8 text-destructive hover:text-destructive"
                       onClick={() => {
-                        if (confirm(`Delete review from "${review.reviewer_name}"?`)) {
+                        if (confirm(`Delete review from "${reviewerName}"?`)) {
                           deleteMutation.mutate(review._id);
                         }
                       }}
@@ -317,7 +322,7 @@ function ReviewsPage() {
                 <Label htmlFor="review_type">Review Type *</Label>
                 <Select
                   name="review_type"
-                  defaultValue={editing?.review_type || (selectedType !== "all" ? selectedType : "google_review")}
+                  defaultValue={editing?.review_type || (editing as any)?.type || (selectedType !== "all" ? selectedType : "google_review")}
                 >
                   <SelectTrigger id="review_type">
                     <SelectValue placeholder="Select type" />
@@ -357,7 +362,7 @@ function ReviewsPage() {
                   name="reviewer_name"
                   required
                   placeholder="e.g. Priya Sharma"
-                  defaultValue={editing?.reviewer_name}
+                  defaultValue={editing?.reviewer_name || (editing as any)?.name || ""}
                 />
               </div>
 
@@ -368,7 +373,7 @@ function ReviewsPage() {
                   name="reviewer_email"
                   type="email"
                   placeholder="priya@example.com"
-                  defaultValue={editing?.reviewer_email}
+                  defaultValue={editing?.reviewer_email || (editing as any)?.email || ""}
                 />
               </div>
             </div>
@@ -380,7 +385,7 @@ function ReviewsPage() {
                   id="title"
                   name="title"
                   placeholder="e.g., Amazing Hair Regrowth Results"
-                  defaultValue={editing?.title}
+                  defaultValue={editing?.title || ""}
                 />
               </div>
 
@@ -390,7 +395,7 @@ function ReviewsPage() {
                   id="relativeTime"
                   name="relativeTime"
                   placeholder="e.g., a week ago, 3 months ago"
-                  defaultValue={editing?.relativeTime}
+                  defaultValue={editing?.relativeTime || ""}
                 />
               </div>
             </div>
@@ -403,7 +408,7 @@ function ReviewsPage() {
                 required
                 rows={4}
                 placeholder="Write the full testimonial text here..."
-                defaultValue={editing?.comment}
+                defaultValue={editing?.comment || (editing as any)?.message || ""}
               />
             </div>
 
