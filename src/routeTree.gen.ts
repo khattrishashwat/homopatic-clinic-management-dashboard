@@ -14,6 +14,8 @@ import { Route as DashboardMedicalRecordsRouteImport } from './routes/_dashboard
 import { Route as DashboardCategoriesRouteImport } from './routes/_dashboard/categories'
 import { Route as DashboardBlogsRouteImport } from './routes/_dashboard/blogs'
 import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/appointments'
+import { Route as DashboardFaqsRouteImport } from './routes/_dashboard/faqs'
+import { Route as DashboardChatbotRouteImport } from './routes/_dashboard/chatbot'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -89,6 +91,16 @@ const DashboardAppointmentsRoute = DashboardAppointmentsRouteImport.update({
   path: '/appointments',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardFaqsRoute = DashboardFaqsRouteImport.update({
+  id: '/faqs',
+  path: '/faqs',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardChatbotRoute = DashboardChatbotRouteImport.update({
+  id: '/chatbot',
+  path: '/chatbot',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
@@ -105,6 +117,8 @@ export interface FileRoutesByFullPath {
   '/products': typeof DashboardProductsRoute
   '/settings': typeof DashboardSettingsRoute
   '/slots': typeof DashboardSlotsRoute
+  '/faqs': typeof DashboardFaqsRoute
+  '/chatbot': typeof DashboardChatbotRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -120,6 +134,8 @@ export interface FileRoutesByTo {
   '/products': typeof DashboardProductsRoute
   '/settings': typeof DashboardSettingsRoute
   '/slots': typeof DashboardSlotsRoute
+  '/faqs': typeof DashboardFaqsRoute
+  '/chatbot': typeof DashboardChatbotRoute
   '/': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -138,6 +154,8 @@ export interface FileRoutesById {
   '/_dashboard/products': typeof DashboardProductsRoute
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/slots': typeof DashboardSlotsRoute
+  '/_dashboard/faqs': typeof DashboardFaqsRoute
+  '/_dashboard/chatbot': typeof DashboardChatbotRoute
   '/_dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -157,6 +175,8 @@ export interface FileRouteTypes {
     | '/products'
     | '/settings'
     | '/slots'
+    | '/faqs'
+    | '/chatbot'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -172,6 +192,8 @@ export interface FileRouteTypes {
     | '/products'
     | '/settings'
     | '/slots'
+    | '/faqs'
+    | '/chatbot'
     | '/'
   id:
     | '__root__'
@@ -189,6 +211,8 @@ export interface FileRouteTypes {
     | '/_dashboard/products'
     | '/_dashboard/settings'
     | '/_dashboard/slots'
+    | '/_dashboard/faqs'
+    | '/_dashboard/chatbot'
     | '/_dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -304,6 +328,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAppointmentsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/faqs': {
+      id: '/_dashboard/faqs'
+      path: '/faqs'
+      fullPath: '/faqs'
+      preLoaderRoute: typeof DashboardFaqsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/chatbot': {
+      id: '/_dashboard/chatbot'
+      path: '/chatbot'
+      fullPath: '/chatbot'
+      preLoaderRoute: typeof DashboardChatbotRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
@@ -320,6 +358,8 @@ interface DashboardRouteChildren {
   DashboardProductsRoute: typeof DashboardProductsRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardSlotsRoute: typeof DashboardSlotsRoute
+  DashboardFaqsRoute: typeof DashboardFaqsRoute
+  DashboardChatbotRoute: typeof DashboardChatbotRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
@@ -336,6 +376,8 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardProductsRoute: DashboardProductsRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardSlotsRoute: DashboardSlotsRoute,
+  DashboardFaqsRoute: DashboardFaqsRoute,
+  DashboardChatbotRoute: DashboardChatbotRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

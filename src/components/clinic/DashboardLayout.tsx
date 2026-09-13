@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Calendar, Clock, Users, FileText, FolderHeart, Folder,
   CreditCard, Package, ShoppingCart, Bell, BookOpen, Settings, Star,
-  Menu, X, Search, Moon, Sun, ChevronLeft, LogOut, User
+  Menu, X, Search, Moon, Sun, ChevronLeft, LogOut, User, HelpCircle, Bot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,8 @@ const navItems = [
     { title: "Blogs", to: "/blogs", icon: BookOpen },
     { title: "Categories", to: "/categories", icon: Folder },
     { title: "Reviews", to: "/reviews", icon: Star },
+    { title: "FAQs", to: "/faqs", icon: HelpCircle },
+    { title: "Chatbot Q&A", to: "/chatbot", icon: Bot },
     { title: "Settings", to: "/settings", icon: Settings },
 ];
 

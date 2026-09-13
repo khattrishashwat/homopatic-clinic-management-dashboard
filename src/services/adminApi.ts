@@ -193,6 +193,28 @@ export interface ChatbotSettingsDto {
   suggested_questions: string[];
 }
 
+export interface FaqDto {
+  _id: string;
+  question: string;
+  answer: string;
+  category?: string;
+  order?: number;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ChatbotQuestionDto {
+  _id: string;
+  question: string;
+  answer: string;
+  keywords?: string[];
+  order?: number;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface LoginResult {
   token: string;
   user: AdminUser;
@@ -333,4 +355,22 @@ export const settingsApi = {
   updateNotification: async (data: Record<string, unknown>) => (await httpClient.patch<Record<string, unknown>>("/admin/settings/notification", data)).data,
   getChatbot: async () => (await httpClient.get<ChatbotSettingsDto>("/admin/settings/chatbot")).data,
   updateChatbot: async (data: Partial<ChatbotSettingsDto>) => (await httpClient.patch<ChatbotSettingsDto>("/admin/settings/chatbot", data)).data,
+};
+
+export const faqsApi = {
+  list: async (params?: ListParams) => unwrapList<FaqDto>(await httpClient.get("/admin/faqs", { params })),
+  getById: async (id: string) => (await httpClient.get<FaqDto>(`/admin/faqs/${id}`)).data,
+  create: async (data: Partial<FaqDto>) => (await httpClient.post<FaqDto>("/admin/faqs", data)).data,
+  update: async (id: string, data: Partial<FaqDto>) => (await httpClient.put<FaqDto>(`/admin/faqs/${id}`, data)).data,
+  delete: async (id: string) => (await httpClient.delete(`/admin/faqs/${id}`)).data,
+  toggleStatus: async (id: string, active: boolean) => (await httpClient.patch<FaqDto>(`/admin/faqs/${id}/status`, { active })).data,
+};
+
+export const chatbotQuestionsApi = {
+  list: async (params?: ListParams) => unwrapList<ChatbotQuestionDto>(await httpClient.get("/admin/chatbot/questions", { params })),
+  getById: async (id: string) => (await httpClient.get<ChatbotQuestionDto>(`/admin/chatbot/questions/${id}`)).data,
+  create: async (data: Partial<ChatbotQuestionDto>) => (await httpClient.post<ChatbotQuestionDto>("/admin/chatbot/questions", data)).data,
+  update: async (id: string, data: Partial<ChatbotQuestionDto>) => (await httpClient.put<ChatbotQuestionDto>(`/admin/chatbot/questions/${id}`, data)).data,
+  delete: async (id: string) => (await httpClient.delete(`/admin/chatbot/questions/${id}`)).data,
+  toggleStatus: async (id: string, active: boolean) => (await httpClient.patch<ChatbotQuestionDto>(`/admin/chatbot/questions/${id}/status`, { active })).data,
 };
