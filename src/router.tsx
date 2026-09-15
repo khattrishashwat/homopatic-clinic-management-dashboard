@@ -7,7 +7,13 @@ export const getRouter = (queryClient?: QueryClient) => {
 
   const router = createRouter({
     routeTree,
-    context: { queryClient: qc },
+    context: {
+      queryClient: qc,
+    },
+
+    // Admin Panel is hosted under /admin-panel
+    basepath: "/admin-panel",
+
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
   });

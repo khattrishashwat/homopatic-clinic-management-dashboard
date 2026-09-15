@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tsconfigPaths(), tailwindcss()],
-  base: "/",
+  base: '/admin-panel/',
   optimizeDeps: {
     include: [
       "@tanstack/react-query",
