@@ -99,6 +99,8 @@ export interface ProductDto {
   slug: string;
   short_description?: string;
   description?: string;
+  whyWeChooseThis?: string;
+  why_we_choose_this?: string;
   price: number;
   compare_price?: number;
   category?: string | CategoryDto;
@@ -113,6 +115,7 @@ export interface ProductDto {
   sku?: string;
   attributes?: {
     shortDescription?: string;
+    whyWeChooseThis?: string;
     benefits?: string[];
     ingredients?: string[];
     usage?: string;
@@ -120,6 +123,7 @@ export interface ProductDto {
     featured?: boolean;
     recommended?: boolean;
     durationWeeks?: number;
+    [key: string]: unknown;
   };
   average_rating?: number;
   total_reviews?: number;
@@ -296,13 +300,137 @@ export const paymentsApi = {
   list: async (params?: ListParams) => unwrapList<PaymentDto>(await httpClient.get("/admin/payments", { params })),
 };
 
+/**
+ * Normalizes HTML strings to plain text, replacing block elements and list items with readable line breaks and bullets.
+ */
+export function htmlToPlainText(html?: string): string {
+  if (!html || typeof html !== "string") return "";
+  if (!/<[a-z][\s\S]*>/i.test(html)) {
+    return html.trim();
+  }
+
+  let text = html;
+
+  // Replace block element endings / breaks with appropriate newlines
+  text = text.replace(/<br\s*\/?>/gi, "\n");
+  text = text.replace(/<\/p>/gi, "\n\n");
+  text = text.replace(/<\/h[1-6]>/gi, "\n\n");
+  text = text.replace(/<\/div>/gi, "\n");
+
+  // Format list items with bullet points
+  text = text.replace(/<li[^>]*>/gi, "• ");
+  text = text.replace(/<\/li>/gi, "\n");
+
+  // Table rows
+  text = text.replace(/<\/tr>/gi, "\n");
+
+  // Remove all other remaining HTML tags
+  text = text.replace(/<[^>]+>/g, "");
+
+  // Decode common HTML entities
+  text = text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+
+  // Normalize line breaks
+  text = text.replace(/\r\n|\r/g, "\n");
+  text = text.replace(/[ \t]+/g, " ");
+  text = text.replace(/[ \t]+\n/g, "\n").replace(/\n[ \t]+/g, "\n");
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  return text.trim();
+}
+
+/**
+ * Maps raw API Product response to ProductDto:
+ * 1. Ensures description is normalized to plain text.
+ * 2. Maps whyWeChooseThis from whyWeChooseThis, why_we_choose_this, or attributes.whyWeChooseThis.
+ */
+export function mapProductDto(raw: any): ProductDto {
+  if (!raw || typeof raw !== "object") return raw as ProductDto;
+  return {
+    ...raw,
+    description: raw.description ? htmlToPlainText(raw.description) : (raw.description ?? ""),
+    whyWeChooseThis:
+      raw.whyWeChooseThis ??
+      raw.why_we_choose_this ??
+      (raw.attributes && typeof raw.attributes === "object" ? (raw.attributes as any).whyWeChooseThis : undefined) ??
+      "",
+  } as ProductDto;
+}
+
+function prepareProductPayload(data: Partial<ProductDto> | FormData): Partial<ProductDto> | FormData {
+  if (data instanceof FormData) {
+    const whyWeChooseThis = data.get("whyWeChooseThis");
+    if (whyWeChooseThis !== null && typeof whyWeChooseThis === "string") {
+      if (!data.has("why_we_choose_this")) {
+        data.append("why_we_choose_this", whyWeChooseThis);
+      }
+      const existingAttrsRaw = data.get("attributes");
+      let attrs: Record<string, unknown> = {};
+      if (typeof existingAttrsRaw === "string") {
+        try {
+          attrs = JSON.parse(existingAttrsRaw);
+        } catch {
+          attrs = {};
+        }
+      }
+      if (!attrs.whyWeChooseThis) {
+        attrs.whyWeChooseThis = whyWeChooseThis;
+        data.set("attributes", JSON.stringify(attrs));
+      }
+    }
+    return data;
+  }
+
+  if (data && typeof data === "object") {
+    const payload: any = { ...data };
+    if (payload.whyWeChooseThis !== undefined) {
+      payload.why_we_choose_this = payload.why_we_choose_this ?? payload.whyWeChooseThis;
+      payload.attributes = {
+        ...(payload.attributes || {}),
+        whyWeChooseThis: payload.whyWeChooseThis,
+      };
+    }
+    return payload;
+  }
+
+  return data;
+}
+
 export const productsApi = {
-  list: async (params?: ListParams) => unwrapList<ProductDto>(await httpClient.get("/admin/products", { params })),
-  create: async (data: Partial<ProductDto> | FormData) => (await httpClient.post<ProductDto>("/admin/products", data)).data,
-  getbyId: async (id: string) => (await httpClient.get<ProductDto>(`/admin/products/${id}`)).data,
-  update: async (id: string, data: Partial<ProductDto> | FormData) => (await httpClient.patch<ProductDto>(`/admin/products/${id}`, data)).data,
+  list: async (params?: ListParams) => {
+    const result = unwrapList<ProductDto>(await httpClient.get("/admin/products", { params }));
+    return {
+      ...result,
+      data: (result.data || []).map(mapProductDto),
+    };
+  },
+  create: async (data: Partial<ProductDto> | FormData) => {
+    const payload = prepareProductPayload(data);
+    const res = await httpClient.post<ProductDto>("/admin/products", payload);
+    return mapProductDto(res.data);
+  },
+  getbyId: async (id: string) => {
+    const res = await httpClient.get<ProductDto>(`/admin/products/${id}`);
+    return mapProductDto(res.data);
+  },
+  update: async (id: string, data: Partial<ProductDto> | FormData) => {
+    const payload = prepareProductPayload(data);
+    const res = await httpClient.patch<ProductDto>(`/admin/products/${id}`, payload);
+    return mapProductDto(res.data);
+  },
   delete: async (id: string) => (await httpClient.delete(`/admin/products/${id}`)).data,
-  uploadImage: async (id: string, formData: FormData) => (await httpClient.patch<ProductDto>(`/admin/products/${id}`, formData)).data,
+  uploadImage: async (id: string, formData: FormData) => {
+    const res = await httpClient.patch<ProductDto>(`/admin/products/${id}`, formData);
+    return mapProductDto(res.data);
+  },
 };
 
 export const ordersApi = {

@@ -79,11 +79,22 @@ function ProductsPage() {
       // Basic fields
       productFormData.append("name", String(formData.get("name") || ""));
       productFormData.append("description", String(formData.get("description") || ""));
+      productFormData.append("whyWeChooseThis", String(formData.get("whyWeChooseThis") || ""));
+      productFormData.append("why_we_choose_this", String(formData.get("whyWeChooseThis") || ""));
       productFormData.append("price", String(Number(formData.get("price") || 0)));
       productFormData.append("compare_price", String(Number(formData.get("compare_price") || 0) || ""));
       productFormData.append("stock", String(Number(formData.get("stock") || 0)));
       productFormData.append("sku", String(formData.get("sku") || ""));
       productFormData.append("category", String(formData.get("category") || ""));
+
+      // Attributes
+      const whyWeChooseThis = String(formData.get("whyWeChooseThis") || "");
+      const existingAttributes = editing?.attributes || {};
+      const attributes = {
+        ...existingAttributes,
+        whyWeChooseThis,
+      };
+      productFormData.append("attributes", JSON.stringify(attributes));
 
       // Status & Visibility
       productFormData.append("active", formData.get("active") === "on" ? "true" : "false");
@@ -288,6 +299,12 @@ function ProductsPage() {
                 {getCategoryName(product.category)} · Stock: {product.stock || 0}
               </p>
 
+              {product.description && (
+                <p className="mt-2 text-xs text-muted-foreground line-clamp-2 whitespace-pre-line">
+                  {product.description}
+                </p>
+              )}
+
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-lg font-bold text-primary">{formatCurrency(product.price)}</span>
                 {product.compare_price && product.compare_price > product.price && (
@@ -336,7 +353,7 @@ function ProductsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form key={editing?._id || "new"} className="space-y-6" onSubmit={handleSubmit}>
             {/* Tab Navigation */}
             <div className="flex border-b">
               {["basic", "advanced"].map((tab) => (
@@ -485,7 +502,19 @@ function ProductsPage() {
                     id="description"
                     name="description"
                     placeholder="Detailed product description"
-                    defaultValue={editing?.description}
+                    defaultValue={editing?.description || ""}
+                    rows={4}
+                  />
+                </div>
+
+                {/* Why We Choose This */}
+                <div className="space-y-2">
+                  <Label htmlFor="whyWeChooseThis">Why We Choose This</Label>
+                  <Textarea
+                    id="whyWeChooseThis"
+                    name="whyWeChooseThis"
+                    placeholder="Reasons why customers should choose this product"
+                    defaultValue={editing?.whyWeChooseThis || ""}
                     rows={4}
                   />
                 </div>
