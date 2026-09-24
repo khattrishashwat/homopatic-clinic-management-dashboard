@@ -82,10 +82,29 @@ function ProductsPage() {
       productFormData.append("whyWeChooseThis", String(formData.get("whyWeChooseThis") || ""));
       productFormData.append("why_we_choose_this", String(formData.get("whyWeChooseThis") || ""));
       productFormData.append("price", String(Number(formData.get("price") || 0)));
-      productFormData.append("compare_price", String(Number(formData.get("compare_price") || 0) || ""));
+
+      const comparePrice = formData.get("compare_price");
+      if (comparePrice !== null && comparePrice !== "" && Number(comparePrice) > 0) {
+        productFormData.append("compare_price", String(Number(comparePrice)));
+      } else {
+        productFormData.append("compare_price", "");
+      }
+
       productFormData.append("stock", String(Number(formData.get("stock") || 0)));
-      productFormData.append("sku", String(formData.get("sku") || ""));
-      productFormData.append("category", String(formData.get("category") || ""));
+
+      const sku = formData.get("sku");
+      if (sku !== null && String(sku).trim() !== "") {
+        productFormData.append("sku", String(sku).trim());
+      } else {
+        productFormData.append("sku", "");
+      }
+
+      const category = formData.get("category");
+      if (category !== null && String(category).trim() !== "" && String(category) !== "undefined") {
+        productFormData.append("category", String(category).trim());
+      } else {
+        productFormData.append("category", "");
+      }
 
       // Attributes
       const whyWeChooseThis = String(formData.get("whyWeChooseThis") || "");
@@ -97,9 +116,20 @@ function ProductsPage() {
       productFormData.append("attributes", JSON.stringify(attributes));
 
       // Status & Visibility
-      productFormData.append("active", formData.get("active") === "on" ? "true" : "false");
-      productFormData.append("featured", formData.get("featured") === "on" ? "true" : "false");
-      productFormData.append("recommended", formData.get("recommended") === "on" ? "true" : "false");
+      const activeRaw = formData.get("active");
+      const isActive =
+        activeRaw === "true" ||
+        activeRaw === "on" ||
+        (activeRaw === null ? (editing ? editing.active !== false : true) : false);
+      productFormData.append("active", isActive ? "true" : "false");
+
+      const featuredRaw = formData.get("featured");
+      const isFeatured = featuredRaw === "on" || featuredRaw === "true";
+      productFormData.append("featured", isFeatured ? "true" : "false");
+
+      const recommendedRaw = formData.get("recommended");
+      const isRecommended = recommendedRaw === "on" || recommendedRaw === "true";
+      productFormData.append("recommended", isRecommended ? "true" : "false");
 
       // Images
       if (mainImageFile) {
@@ -373,8 +403,7 @@ function ProductsPage() {
             </div>
 
             {/* Basic Info Tab */}
-            {activeTab === "basic" && (
-              <div className="space-y-4">
+            <div className={activeTab === "basic" ? "space-y-4" : "hidden"}>
                 {/* Main Image */}
                 <div className="space-y-2">
                   <Label>Product Image *</Label>
@@ -497,26 +526,40 @@ function ProductsPage() {
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="description">Full Description</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="description">Full Description</Label>
+                    <span className="text-xs text-muted-foreground">Markdown / Plain text supported</span>
+                  </div>
                   <Textarea
                     id="description"
                     name="description"
-                    placeholder="Detailed product description"
+                    placeholder={`# Product Name\n\nProduct introduction...\n\n## Benefits of Product\n- Benefit one\n- Benefit two\n\n## Directions for Use\nSpray directly onto the scalp...\n\n## Caution While Using Product\n- For external use only\n- Avoid contact with eyes\n\n## Note\nThis product is not edible...`}
                     defaultValue={editing?.description || ""}
-                    rows={4}
+                    rows={8}
+                    className="font-mono text-xs md:text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Use Markdown headings (<code>#</code>, <code>##</code>), bold (<code>**text**</code>), and lists (<code>- item</code>).
+                  </p>
                 </div>
 
                 {/* Why We Choose This */}
                 <div className="space-y-2">
-                  <Label htmlFor="whyWeChooseThis">Why We Choose This</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="whyWeChooseThis">Why We Choose This</Label>
+                    <span className="text-xs text-muted-foreground">Checklist card content</span>
+                  </div>
                   <Textarea
                     id="whyWeChooseThis"
                     name="whyWeChooseThis"
-                    placeholder="Reasons why customers should choose this product"
+                    placeholder={`- Carefully selected homoeopathic ingredients\n- Supports a healthy scalp environment\n- Helps maintain healthier-looking hair\n- Suitable for regular scalp-care routine\n- Easy to use as part of daily scalp care`}
                     defaultValue={editing?.whyWeChooseThis || ""}
-                    rows={4}
+                    rows={5}
+                    className="font-mono text-xs md:text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Enter one reason per line (with or without <code>-</code> bullet points). Displayed as a dedicated checklist card.
+                  </p>
                 </div>
 
                 {/* Pricing */}
@@ -572,51 +615,35 @@ function ProductsPage() {
                   </div>
                 </div>
               </div>
-            )}
 
             {/* Advanced Tab */}
-            {activeTab === "advanced" && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <Label htmlFor="featured" className="text-base">Featured Product</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Showcase on homepage or featured sections
-                    </p>
-                  </div>
-                  <Switch
-                    name="featured"
-                    defaultChecked={editing?.featured}
-                  />
+            <div className={activeTab === "advanced" ? "space-y-4" : "hidden"}>
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <Label htmlFor="featured" className="text-base">Featured Product</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Showcase on homepage or featured sections
+                  </p>
                 </div>
-
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <Label htmlFor="recommended" className="text-base">Recommended Product</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Display under &quot;Recommended Products&quot; on website Home page
-                    </p>
-                  </div>
-                  <Switch
-                    name="recommended"
-                    defaultChecked={editing?.recommended}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <Label htmlFor="active" className="text-base">Active Status</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Make product visible on website
-                    </p>
-                  </div>
-                  <Switch
-                    name="active"
-                    defaultChecked={editing?.active ?? true}
-                  />
-                </div>
+                <Switch
+                  name="featured"
+                  defaultChecked={editing?.featured}
+                />
               </div>
-            )}
+
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <Label htmlFor="recommended" className="text-base">Recommended Product</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Display under &quot;Recommended Products&quot; on website Home page
+                  </p>
+                </div>
+                <Switch
+                  name="recommended"
+                  defaultChecked={editing?.recommended}
+                />
+              </div>
+            </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button
