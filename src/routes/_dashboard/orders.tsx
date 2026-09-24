@@ -23,25 +23,42 @@ function OrdersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  {["ID", "Customer", "Products", "Total", "Status", "Payment", "Date"].map((heading) => (
+                  {["ID", "Customer", "Products", "Coupon / Discount", "Total", "Status", "Payment", "Date"].map((heading) => (
                     <th key={heading} className="px-4 py-3 text-left font-medium text-muted-foreground">{heading}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {ordersQuery.isLoading && <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">Loading orders...</td></tr>}
+                {ordersQuery.isLoading && <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Loading orders...</td></tr>}
                 {orders.map((order) => (
                   <tr key={order._id} className="border-b hover:bg-muted/30">
                     <td className="px-4 py-3 font-mono text-xs">{order.order_number}</td>
-                    <td className="px-4 py-3 font-medium">{order.customer_name}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{order.customer_name}</div>
+                      {order.customer_email && <div className="text-[11px] text-muted-foreground">{order.customer_email}</div>}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{(order.items || []).map((item) => item.product?.name || "Product").join(", ") || "-"}</td>
+                    <td className="px-4 py-3">
+                      {order.coupon_code ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded w-fit">
+                            {order.coupon_code}
+                          </span>
+                          {order.discount ? <span className="text-[11px] text-emerald-600 font-medium">- {formatCurrency(order.discount)}</span> : null}
+                        </div>
+                      ) : order.discount ? (
+                        <span className="text-xs text-emerald-600">- {formatCurrency(order.discount)}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(order.total)}</td>
                     <td className="px-4 py-3"><StatusBadge status={order.order_status} /></td>
                     <td className="px-4 py-3"><StatusBadge status={order.payment_status} /></td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(order.created_at)}</td>
                   </tr>
                 ))}
-                {!ordersQuery.isLoading && orders.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">No orders found</td></tr>}
+                {!ordersQuery.isLoading && orders.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No orders found</td></tr>}
               </tbody>
             </table>
           </div>

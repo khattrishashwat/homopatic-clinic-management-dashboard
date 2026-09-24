@@ -173,11 +173,56 @@ export interface OrderDto {
   _id: string;
   order_number: string;
   customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
   items?: { product?: ProductDto; quantity: number; price: number }[];
+  subtotal?: number;
+  discount?: number;
   total: number;
+  coupon_code?: string;
   order_status: string;
   payment_status: string;
   created_at?: string;
+}
+
+export interface CouponDto {
+  _id: string;
+  code: string;
+  description?: string;
+  discountType: "PERCENTAGE" | "FIXED";
+  discountValue: number;
+  minimumOrderValue?: number;
+  maximumDiscount?: number | null;
+  usageLimit?: number | null;
+  perCustomerLimit: number;
+  usedCount: number;
+  startDate?: string;
+  endDate?: string | null;
+  active: boolean;
+  applicableProducts?: ProductDto[] | string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CouponUsageDto {
+  _id: string;
+  coupon: string;
+  couponCode: string;
+  order: {
+    _id: string;
+    order_number: string;
+    total: number;
+    customer_name?: string;
+    customer_email?: string;
+    customer_phone?: string;
+    order_status?: string;
+    payment_status?: string;
+    created_at?: string;
+  };
+  customerEmail: string;
+  customerMobile: string;
+  discountAmount: number;
+  usedAt: string;
 }
 
 export interface NotificationDto {
@@ -507,4 +552,14 @@ export const chatbotQuestionsApi = {
   update: async (id: string, data: Partial<ChatbotQuestionDto>) => (await httpClient.put<ChatbotQuestionDto>(`/admin/chatbot/questions/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/chatbot/questions/${id}`)).data,
   toggleStatus: async (id: string, active: boolean) => (await httpClient.patch<ChatbotQuestionDto>(`/admin/chatbot/questions/${id}/status`, { active })).data,
+};
+
+export const couponsApi = {
+  list: async (params?: ListParams) => unwrapList<CouponDto>(await httpClient.get("/admin/coupons", { params })),
+  getById: async (id: string) => (await httpClient.get<{ data: CouponDto; usages?: CouponUsageDto[] }>(`/admin/coupons/${id}`)).data,
+  create: async (data: Partial<CouponDto>) => (await httpClient.post<CouponDto>("/admin/coupons", data)).data,
+  update: async (id: string, data: Partial<CouponDto>) => (await httpClient.patch<CouponDto>(`/admin/coupons/${id}`, data)).data,
+  toggleStatus: async (id: string) => (await httpClient.patch<CouponDto>(`/admin/coupons/${id}/status`)).data,
+  delete: async (id: string) => (await httpClient.delete(`/admin/coupons/${id}`)).data,
+  getUsage: async (id: string, params?: ListParams) => unwrapList<CouponUsageDto>(await httpClient.get(`/admin/coupons/${id}/usage`, { params })),
 };

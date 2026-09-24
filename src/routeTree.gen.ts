@@ -17,6 +17,7 @@ import { Route as DashboardAppointmentsRouteImport } from './routes/_dashboard/a
 import { Route as DashboardFaqsRouteImport } from './routes/_dashboard/faqs'
 import { Route as DashboardChatbotRouteImport } from './routes/_dashboard/chatbot'
 import { Route as DashboardReviewsRouteImport } from './routes/_dashboard/reviews'
+import { Route as DashboardCouponsRouteImport } from './routes/_dashboard/coupons'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -107,6 +108,11 @@ const DashboardReviewsRoute = DashboardReviewsRouteImport.update({
   path: '/reviews',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardCouponsRoute = DashboardCouponsRouteImport.update({
+  id: '/coupons',
+  path: '/coupons',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/faqs': typeof DashboardFaqsRoute
   '/chatbot': typeof DashboardChatbotRoute
   '/reviews': typeof DashboardReviewsRoute
+  '/coupons': typeof DashboardCouponsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/faqs': typeof DashboardFaqsRoute
   '/chatbot': typeof DashboardChatbotRoute
   '/reviews': typeof DashboardReviewsRoute
+  '/coupons': typeof DashboardCouponsRoute
   '/': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/_dashboard/faqs': typeof DashboardFaqsRoute
   '/_dashboard/chatbot': typeof DashboardChatbotRoute
   '/_dashboard/reviews': typeof DashboardReviewsRoute
+  '/_dashboard/coupons': typeof DashboardCouponsRoute
   '/_dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/faqs'
     | '/chatbot'
     | '/reviews'
+    | '/coupons'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/faqs'
     | '/chatbot'
     | '/reviews'
+    | '/coupons'
     | '/'
   id:
     | '__root__'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/_dashboard/faqs'
     | '/_dashboard/chatbot'
     | '/_dashboard/reviews'
+    | '/_dashboard/coupons'
     | '/_dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -361,6 +373,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardReviewsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/coupons': {
+      id: '/_dashboard/coupons'
+      path: '/coupons'
+      fullPath: '/coupons'
+      preLoaderRoute: typeof DashboardCouponsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
@@ -380,6 +399,7 @@ interface DashboardRouteChildren {
   DashboardFaqsRoute: typeof DashboardFaqsRoute
   DashboardChatbotRoute: typeof DashboardChatbotRoute
   DashboardReviewsRoute: typeof DashboardReviewsRoute
+  DashboardCouponsRoute: typeof DashboardCouponsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
@@ -399,6 +419,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardFaqsRoute: DashboardFaqsRoute,
   DashboardChatbotRoute: DashboardChatbotRoute,
   DashboardReviewsRoute: DashboardReviewsRoute,
+  DashboardCouponsRoute: DashboardCouponsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 
