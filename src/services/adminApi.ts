@@ -18,6 +18,40 @@ export interface SlotRef {
   startTime: string;
   endTime: string;
   available?: boolean;
+  bookingType?: "online" | "offline" | "both";
+  durationMinutes?: number;
+}
+
+export interface TimeRangeDto {
+  startTime: string;
+  endTime: string;
+}
+
+export interface DayScheduleDto {
+  dayOfWeek: number;
+  enabled: boolean;
+  timeRanges: TimeRangeDto[];
+}
+
+export interface DateOverrideDto {
+  _id?: string;
+  date: string;
+  isClosed: boolean;
+  timeRanges: TimeRangeDto[];
+  note?: string;
+}
+
+export interface BookingScheduleDto {
+  _id?: string;
+  bookingType: "online" | "offline";
+  slotDuration: number;
+  defaultSchedule: {
+    enabled: boolean;
+    timeRanges: TimeRangeDto[];
+  };
+  weeklySchedule: DayScheduleDto[];
+  dateOverrides: DateOverrideDto[];
+  updatedAt?: string;
 }
 
 export interface AppointmentDto {
@@ -318,6 +352,15 @@ export const slotsApi = {
   list: async () => (await httpClient.get<SlotRef[]>("/admin/slots")).data,
   update: async (id: string, data: Partial<SlotRef>) => (await httpClient.patch<SlotRef>(`/admin/slots/${id}`, data)).data,
   generateWeekends: async () => (await httpClient.post<unknown>("/admin/slots/generate-weekends", { daysAhead: 30, intervalMinutes: 30 })).data,
+  getSchedule: async (type: "online" | "offline") => (await httpClient.get<BookingScheduleDto>(`/admin/slots/schedule/${type}`)).data,
+  updateSchedule: async (type: "online" | "offline", data: Partial<BookingScheduleDto>) =>
+    (await httpClient.put<BookingScheduleDto>(`/admin/slots/schedule/${type}`, data)).data,
+  setDateOverride: async (type: "online" | "offline", data: DateOverrideDto) =>
+    (await httpClient.post<BookingScheduleDto>(`/admin/slots/schedule/${type}/override`, data)).data,
+  removeDateOverride: async (type: "online" | "offline", date: string) =>
+    (await httpClient.delete<BookingScheduleDto>(`/admin/slots/schedule/${type}/override/${date}`)).data,
+  previewSlots: async (type: "online" | "offline", date: string) =>
+    (await httpClient.get<{ slots: SlotRef[]; effective: any }>(`/admin/slots/schedule/${type}/preview`, { params: { date } })).data,
 };
 
 export const patientsApi = {
