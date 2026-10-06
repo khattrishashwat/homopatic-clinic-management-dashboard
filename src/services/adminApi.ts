@@ -63,8 +63,21 @@ export interface AppointmentDto {
   slot?: SlotRef;
   status: "pending" | "confirmed" | "approved" | "rejected" | "cancelled" | "completed" | "missed" | "rescheduled";
   consultation_type?: "online" | "offline";
+  bookingType?: "ONLINE" | "OFFLINE" | string;
+  planType?: "SEVEN_DAYS" | "ONE_MONTH" | null | string;
+  planDuration?: number | null;
+  baseAmount?: number;
+  deliveryCharge?: number;
+  totalAmount?: number;
+  amount?: number;
   payment_status?: "pending" | "paid" | "failed";
+  paymentMethod?: "online" | "offline" | string;
+  concern?: string;
+  customConcern?: string;
   reason?: string;
+  address?: string;
+  city?: string;
+  pincode?: string;
   notes?: string;
   createdAt?: string;
 }

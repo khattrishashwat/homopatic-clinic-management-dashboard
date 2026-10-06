@@ -32,6 +32,12 @@ function SettingsPage() {
         slot_duration: Number(formData.get("slot_duration") || 30),
         advance_booking_days: Number(formData.get("advance_booking_days") || 30),
         enable_online_booking: formData.get("enable_online_booking") === "on",
+        pricing: {
+          online_7_days: Number(formData.get("pricing_online_7_days") || 500),
+          online_1_month: Number(formData.get("pricing_online_1_month") || 1000),
+          offline: Number(formData.get("pricing_offline") || 200),
+          delivery_included: true,
+        },
       });
       await settingsApi.updatePayment({
         razorpay_key_id: String(formData.get("razorpay_key_id") || ""),
@@ -67,6 +73,7 @@ function SettingsPage() {
   };
 
   const appointment = appointmentQuery.data || {};
+  const pricing = (appointment as any).pricing || {};
   const payment = paymentQuery.data || {};
   const notification = notificationQuery.data || {};
   const chatbot = chatbotQuery.data || {
@@ -92,6 +99,51 @@ function SettingsPage() {
             <div><Label>Advance Booking Days</Label><Input name="advance_booking_days" type="number" defaultValue={String(appointment.advance_booking_days || 30)} /></div>
           </div>
           <SwitchField id="enable_online_booking" label="Enable Online Booking" defaultChecked={Boolean(appointment.enable_online_booking ?? true)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Appointment Pricing</CardTitle>
+          <p className="text-xs text-muted-foreground">Single source of truth for online subscription plans and offline consultation</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="pricing_online_7_days">Online - 7 Days (₹)</Label>
+              <Input
+                id="pricing_online_7_days"
+                name="pricing_online_7_days"
+                type="number"
+                defaultValue={String(pricing.online_7_days || 500)}
+              />
+              <span className="text-[11px] text-muted-foreground mt-1 block">Includes medicines + delivery</span>
+            </div>
+            <div>
+              <Label htmlFor="pricing_online_1_month">Online - 1 Month (₹)</Label>
+              <Input
+                id="pricing_online_1_month"
+                name="pricing_online_1_month"
+                type="number"
+                defaultValue={String(pricing.online_1_month || 1000)}
+              />
+              <span className="text-[11px] text-muted-foreground mt-1 block">Includes medicines + delivery</span>
+            </div>
+            <div>
+              <Label htmlFor="pricing_offline">Offline Appointment (₹)</Label>
+              <Input
+                id="pricing_offline"
+                name="pricing_offline"
+                type="number"
+                defaultValue={String(pricing.offline || 200)}
+              />
+              <span className="text-[11px] text-muted-foreground mt-1 block">In-person clinic consultation</span>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground border border-border">
+            <strong>Delivery Charges:</strong> Included in Online Plans. No additional delivery charge added at checkout.
+          </div>
         </CardContent>
       </Card>
 
