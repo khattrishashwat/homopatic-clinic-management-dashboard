@@ -64,7 +64,7 @@ export interface AppointmentDto {
   status: "pending" | "confirmed" | "approved" | "rejected" | "cancelled" | "completed" | "missed" | "rescheduled";
   consultation_type?: "online" | "offline";
   bookingType?: "ONLINE" | "OFFLINE" | string;
-  planType?: "SEVEN_DAYS" | "ONE_MONTH" | null | string;
+  planType?: "FIFTEEN_DAYS" | "SEVEN_DAYS" | "ONE_MONTH" | null | string;
   planDuration?: number | null;
   baseAmount?: number;
   deliveryCharge?: number;
@@ -95,16 +95,77 @@ export interface PatientDto {
   family_members?: PatientDto[];
   medical_history?: string[];
   notes?: string;
+  relationship?: string;
   created_at?: string;
+}
+
+export interface PrescriptionMedicineDto {
+  name: string;
+  potency?: string;
+  dosage: string;
+  route?: string;
+  frequency?: string;
+  duration: string;
+  quantity?: string;
+  instructions?: string;
+  foodTiming?: string;
+  notes?: string;
+}
+
+export interface PrescriptionVitalsDto {
+  height?: string;
+  weight?: string;
+  bp?: string;
+  pulse?: string;
+  spo2?: string;
+  temperature?: string;
+  blood_sugar?: string;
+}
+
+export interface PrescriptionAdviceDto {
+  general?: string;
+  diet_lifestyle?: string;
+  follow_up?: string;
+  next_visit?: string;
 }
 
 export interface PrescriptionDto {
   _id: string;
+  prescriptionNumber?: string;
   patient?: PatientDto;
   title?: string;
-  medicines: { name: string; dosage: string; duration: string; notes?: string }[];
+  prescription_date?: string;
+  doctor_info?: {
+    name?: string;
+    qualification?: string;
+    specialization?: string;
+    reg_no?: string;
+    phone?: string;
+  };
+  clinic_info?: {
+    name?: string;
+    tagline?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
+  patient_snapshot?: {
+    name?: string;
+    patientId?: string;
+    gender?: string;
+    age?: number;
+    phone?: string;
+  };
+  vitals?: PrescriptionVitalsDto;
+  medicines: PrescriptionMedicineDto[];
+  advice?: PrescriptionAdviceDto;
   notes?: string;
+  pdf_url?: string;
+  image_url?: string;
+  status?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface MedicalRecordDto {
@@ -134,10 +195,11 @@ export interface CategoryDto {
   name: string;
   slug: string;
   description?: string;
-  type?: "product" | "blog" | "general";
+  type?: "product" | "blog" | "both" | "general" | "health_concern" | string;
   image?: string;
   count?: number;
   active?: boolean;
+  status?: string;
 }
 
 export interface ProductDto {
@@ -379,6 +441,8 @@ export const slotsApi = {
 export const patientsApi = {
   list: async (params?: ListParams) => unwrapList<PatientDto>(await httpClient.get("/admin/patients", { params })),
   create: async (data: Partial<PatientDto>) => (await httpClient.post<PatientDto>("/admin/patients", data)).data,
+  createFamily: async (data: any) => (await httpClient.post<{ success: boolean; data: any }>("/admin/patients/family", data)).data,
+  bulkImport: async (patients: any[]) => (await httpClient.post<{ success: boolean; data: any }>("/admin/patients/bulk-import", { patients })).data,
   update: async (id: string, data: Partial<PatientDto>) => (await httpClient.patch<PatientDto>(`/admin/patients/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/patients/${id}`)).data,
   profile: async (id: string) => (await httpClient.get<unknown>(`/admin/patients/${id}/profile`)).data,
@@ -392,8 +456,11 @@ export const prescriptionsApi = {
 };
 
 export const medicalRecordsApi = {
-  list: async (params?: ListParams) => unwrapList<MedicalRecordDto>(await httpClient.get("/admin/medical-records", { params })),
+  list: async (params?: ListParams & { patientId?: string; file_type?: string }) =>
+    unwrapList<MedicalRecordDto>(await httpClient.get("/admin/medical-records", { params })),
   upload: async (data: FormData) => (await httpClient.post<MedicalRecordDto>("/admin/medical-records", data)).data,
+  uploadBulk: async (data: FormData) =>
+    (await httpClient.post<{ success: boolean; message: string; count: number; data: MedicalRecordDto[] }>("/admin/medical-records/bulk", data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/medical-records/${id}`)).data,
 };
 

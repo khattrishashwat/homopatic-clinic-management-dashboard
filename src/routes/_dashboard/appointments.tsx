@@ -21,7 +21,8 @@ const statusFilters = ["all", "pending", "confirmed", "completed", "missed", "re
 const modeFilters = ["all", "online", "offline"] as const;
 const planFilters = [
   { id: "all", label: "All Plans" },
-  { id: "SEVEN_DAYS", label: "7 Days" },
+  { id: "FIFTEEN_DAYS", label: "15 Days" },
+  { id: "SEVEN_DAYS", label: "7 Days (Legacy)" },
   { id: "ONE_MONTH", label: "1 Month" },
 ] as const;
 
@@ -58,6 +59,7 @@ function AppointmentsPage() {
 
     if (planFilter !== "all") {
       const plan = appointment.planType;
+      if (planFilter === "FIFTEEN_DAYS" && plan !== "FIFTEEN_DAYS" && plan !== "SEVEN_DAYS") return false;
       if (planFilter === "SEVEN_DAYS" && plan !== "SEVEN_DAYS") return false;
       if (planFilter === "ONE_MONTH" && plan !== "ONE_MONTH") return false;
     }
@@ -90,6 +92,13 @@ function AppointmentsPage() {
     if (!isOnline) return <span className="text-muted-foreground">—</span>;
 
     const plan = appointment.planType;
+    if (plan === "FIFTEEN_DAYS") {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+          15 Days
+        </span>
+      );
+    }
     if (plan === "SEVEN_DAYS") {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
@@ -343,7 +352,9 @@ function AppointmentsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Subscription Plan</p>
                   <p className="font-semibold text-foreground">
-                    {selectedApt.planType === "SEVEN_DAYS"
+                    {selectedApt.planType === "FIFTEEN_DAYS"
+                      ? "15 Days Plan"
+                      : selectedApt.planType === "SEVEN_DAYS"
                       ? "7 Days Plan"
                       : selectedApt.planType === "ONE_MONTH"
                       ? "1 Month Plan"

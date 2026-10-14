@@ -33,7 +33,8 @@ function SettingsPage() {
         advance_booking_days: Number(formData.get("advance_booking_days") || 30),
         enable_online_booking: formData.get("enable_online_booking") === "on",
         pricing: {
-          online_7_days: Number(formData.get("pricing_online_7_days") || 500),
+          online_15_days: Number(formData.get("pricing_online_15_days") || 500),
+          online_7_days: Number(formData.get("pricing_online_15_days") || 500),
           online_1_month: Number(formData.get("pricing_online_1_month") || 1000),
           offline: Number(formData.get("pricing_offline") || 200),
           delivery_included: true,
@@ -110,12 +111,12 @@ function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="pricing_online_7_days">Online - 7 Days (₹)</Label>
+              <Label htmlFor="pricing_online_15_days">Online - 15 Days (₹)</Label>
               <Input
-                id="pricing_online_7_days"
-                name="pricing_online_7_days"
+                id="pricing_online_15_days"
+                name="pricing_online_15_days"
                 type="number"
-                defaultValue={String(pricing.online_7_days || 500)}
+                defaultValue={String(pricing.online_15_days || pricing.online_7_days || 500)}
               />
               <span className="text-[11px] text-muted-foreground mt-1 block">Includes medicines + delivery</span>
             </div>
