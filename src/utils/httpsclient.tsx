@@ -41,12 +41,66 @@ type RequestOptions = RequestInit & {
 };
 
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api`;
-const ASSET_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const ASSET_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
+const S3_BUCKET = "mdshomoeopathy-patient-files-2026";
+const S3_REGION = "ap-south-1";
+const S3_BASE_URL = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com`;
+
+const S3_PREFIXES = [
+  "patients/",
+  "prescriptions/",
+  "products/",
+  "blogs/",
+  "settings/",
+  "excel/",
+  "media/",
+  "videos/",
+];
 
 export const getAssetUrl = (path?: string) => {
-  if (!path) return "#";
-  if (path.startsWith("http")) return path;
-  return `${ASSET_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  if (!path) return "";
+  const trimmed = String(path).trim();
+  if (!trimmed || trimmed === "#") return "";
+
+  // Absolute URLs (HTTP, HTTPS, Data URLs, Blob URLs)
+  if (/^(?:https?:|\/\/|data:|blob:)/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Handle s3:// URIs
+  if (trimmed.startsWith("s3://")) {
+    const withoutScheme = trimmed.replace(/^s3:\/\//, "");
+    const slashIdx = withoutScheme.indexOf("/");
+    if (slashIdx !== -1) {
+      const bucket = withoutScheme.slice(0, slashIdx);
+      const key = withoutScheme.slice(slashIdx + 1);
+      return `https://${bucket}.s3.${S3_REGION}.amazonaws.com/${key}`;
+    }
+    return `${S3_BASE_URL}/${withoutScheme}`;
+  }
+
+  const cleanKey = trimmed.replace(/^\/+/, "");
+
+  // Check known S3 namespace prefixes
+  for (const prefix of S3_PREFIXES) {
+    if (cleanKey.startsWith(prefix)) {
+      return `${S3_BASE_URL}/${cleanKey}`;
+    }
+  }
+
+  // Check legacy uploads/ prefix
+  if (cleanKey.startsWith("uploads/")) {
+    const stripped = cleanKey.replace(/^uploads\//, "");
+    for (const prefix of S3_PREFIXES) {
+      if (stripped.startsWith(prefix)) {
+        return `${S3_BASE_URL}/${stripped}`;
+      }
+    }
+    return `${ASSET_BASE_URL}/${cleanKey}`;
+  }
+
+  return `${ASSET_BASE_URL}/${cleanKey}`;
 };
 
 const buildUrl = (path: string, params?: RequestOptions["params"]) => {

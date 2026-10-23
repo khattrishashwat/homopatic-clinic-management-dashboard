@@ -3,12 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Check, Clock, Eye, Search, X, MapPin, CreditCard } from "lucide-react";
+import { Check, Clock, Eye, Search, X, MapPin, CreditCard, Trash2, AlertTriangle, Calendar, RotateCcw, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/clinic/StatusBadge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { appointmentsApi, type AppointmentDto } from "@/services/adminApi";
 import { formatDate, formatTime, formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -32,13 +32,41 @@ function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [modeFilter, setModeFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedApt, setSelectedApt] = useState<AppointmentDto | null>(null);
+  const [aptToDelete, setAptToDelete] = useState<AppointmentDto | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportAppointments = async () => {
+    try {
+      setIsExporting(true);
+      const res = await appointmentsApi.exportExcel({
+        status: statusFilter === "all" ? undefined : statusFilter,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+      const downloadUrl = res?.data?.downloadUrl;
+      if (downloadUrl) {
+        window.open(downloadUrl, "_blank");
+        toast.success(`Exported ${res?.data?.count ?? 0} appointments to Excel`);
+      } else {
+        toast.error("Export did not return a download URL");
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to export appointments to Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const params = {
     status: statusFilter === "all" ? undefined : statusFilter,
     consultation_type: modeFilter === "all" ? undefined : modeFilter,
     bookingType: modeFilter === "all" ? undefined : modeFilter.toUpperCase(),
     planType: planFilter === "all" ? undefined : planFilter,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
     limit: 50,
   };
 
@@ -85,6 +113,20 @@ function AppointmentsPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => appointmentsApi.delete(id),
+    onSuccess: () => {
+      toast.success("Appointment permanently deleted from database");
+      setAptToDelete(null);
+      setSelectedApt(null);
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to delete appointment");
+    },
+  });
+
   const updateStatus = (id: string, status: string) => statusMutation.mutate({ id, status });
 
   const getPlanBadge = (appointment: AppointmentDto) => {
@@ -125,9 +167,20 @@ function AppointmentsPage() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Appointments</h1>
-        <p className="text-sm text-muted-foreground">Manage all patient appointments, plans, and payments</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Appointments</h1>
+          <p className="text-sm text-muted-foreground">Manage all patient appointments, plans, and payments</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportAppointments}
+          disabled={isExporting}
+        >
+          <Download className="mr-1.5 h-4 w-4" />
+          {isExporting ? "Exporting..." : "Export to Excel"}
+        </Button>
       </div>
 
       <Card>
@@ -158,38 +211,74 @@ function AppointmentsPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/60">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Booking Type:</span>
-              <div className="flex gap-1.5">
-                {modeFilters.map((mode) => (
-                  <Button
-                    key={mode}
-                    size="sm"
-                    variant={modeFilter === mode ? "default" : "outline"}
-                    onClick={() => setModeFilter(mode)}
-                    className="capitalize text-xs h-8"
-                  >
-                    {mode}
-                  </Button>
-                ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Booking Type:</span>
+                <div className="flex gap-1.5">
+                  {modeFilters.map((mode) => (
+                    <Button
+                      key={mode}
+                      size="sm"
+                      variant={modeFilter === mode ? "default" : "outline"}
+                      onClick={() => setModeFilter(mode)}
+                      className="capitalize text-xs h-8"
+                    >
+                      {mode}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Online Plan:</span>
+                <div className="flex gap-1.5">
+                  {planFilters.map((pf) => (
+                    <Button
+                      key={pf.id}
+                      size="sm"
+                      variant={planFilter === pf.id ? "default" : "outline"}
+                      onClick={() => setPlanFilter(pf.id)}
+                      className="text-xs h-8"
+                    >
+                      {pf.label}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Online Plan:</span>
-              <div className="flex gap-1.5">
-                {planFilters.map((pf) => (
-                  <Button
-                    key={pf.id}
-                    size="sm"
-                    variant={planFilter === pf.id ? "default" : "outline"}
-                    onClick={() => setPlanFilter(pf.id)}
-                    className="text-xs h-8"
-                  >
-                    {pf.label}
-                  </Button>
-                ))}
-              </div>
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Date Range:</span>
+              <Input
+                type="date"
+                className="h-8 w-32 text-xs"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder="From"
+              />
+              <span className="text-xs text-muted-foreground">to</span>
+              <Input
+                type="date"
+                className="h-8 w-32 text-xs"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder="To"
+              />
+              {(startDate || endDate) && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  title="Clear date filter"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -229,6 +318,8 @@ function AppointmentsPage() {
                 )}
                 {filtered.map((appointment) => {
                   const isOnline = (appointment.bookingType || appointment.consultation_type || "").toUpperCase() === "ONLINE";
+                  const aptDate = appointment.appointmentDate || appointment.slot?.startTime || appointment.createdAt;
+                  const aptTime = appointment.appointmentTime || (appointment.slot?.startTime ? formatTime(appointment.slot.startTime) : null);
                   return (
                     <tr key={appointment._id} className="border-b transition-colors hover:bg-muted/30">
                       <td className="px-4 py-3 font-mono text-xs">{appointment._id.slice(-8)}</td>
@@ -252,10 +343,10 @@ function AppointmentsPage() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">{getPlanBadge(appointment)}</td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                        {formatDate(appointment.slot?.startTime)}
+                        {formatDate(aptDate)}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                        {formatTime(appointment.slot?.startTime)}
+                        {aptTime || "—"}
                       </td>
                       <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
                         {getAmount(appointment)}
@@ -272,6 +363,7 @@ function AppointmentsPage() {
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7"
+                            title="View Details"
                             onClick={() => setSelectedApt(appointment)}
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -283,6 +375,7 @@ function AppointmentsPage() {
                                 variant="ghost"
                                 className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                                 disabled={statusMutation.isPending}
+                                title="Approve"
                                 onClick={() => updateStatus(appointment._id, "confirmed")}
                               >
                                 <Check className="h-3.5 w-3.5" />
@@ -292,12 +385,23 @@ function AppointmentsPage() {
                                 variant="ghost"
                                 className="h-7 w-7 text-destructive hover:bg-destructive/10"
                                 disabled={statusMutation.isPending}
+                                title="Reject"
                                 onClick={() => updateStatus(appointment._id, "rejected")}
                               >
                                 <X className="h-3.5 w-3.5" />
                               </Button>
                             </>
                           )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            disabled={deleteMutation.isPending}
+                            title="Permanently Delete Appointment"
+                            onClick={() => setAptToDelete(appointment)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -340,7 +444,7 @@ function AppointmentsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Date & Time</p>
                   <p className="font-medium text-foreground">
-                    {formatDate(selectedApt.slot?.startTime)} at {formatTime(selectedApt.slot?.startTime)}
+                    {formatDate(selectedApt.appointmentDate || selectedApt.slot?.startTime || selectedApt.createdAt)} at {selectedApt.appointmentTime || (selectedApt.slot?.startTime ? formatTime(selectedApt.slot.startTime) : "Scheduled")}
                   </p>
                 </div>
                 <div>
@@ -405,38 +509,105 @@ function AppointmentsPage() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                {selectedApt.status === "pending" && (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={() => updateStatus(selectedApt._id, "confirmed")}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <Check className="mr-1 h-3.5 w-3.5" /> Approve
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => updateStatus(selectedApt._id, "rejected")}>
-                      <X className="mr-1 h-3.5 w-3.5" /> Reject
-                    </Button>
-                  </>
-                )}
-                {selectedApt.status === "confirmed" && (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={() => updateStatus(selectedApt._id, "completed")}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <Check className="mr-1 h-3.5 w-3.5" /> Mark Completed
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => updateStatus(selectedApt._id, "missed")}>
-                      <Clock className="mr-1 h-3.5 w-3.5" /> Mark Missed
-                    </Button>
-                  </>
-                )}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => setAptToDelete(selectedApt)}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                </Button>
+
+                <div className="flex gap-2">
+                  {selectedApt.status === "pending" && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => updateStatus(selectedApt._id, "confirmed")}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        <Check className="mr-1 h-3.5 w-3.5" /> Approve
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => updateStatus(selectedApt._id, "rejected")}>
+                        <X className="mr-1 h-3.5 w-3.5" /> Reject
+                      </Button>
+                    </>
+                  )}
+                  {selectedApt.status === "confirmed" && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => updateStatus(selectedApt._id, "completed")}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        <Check className="mr-1 h-3.5 w-3.5" /> Mark Completed
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => updateStatus(selectedApt._id, "missed")}>
+                        <Clock className="mr-1 h-3.5 w-3.5" /> Mark Missed
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Permanent Delete */}
+      <Dialog open={!!aptToDelete} onOpenChange={() => !deleteMutation.isPending && setAptToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Permanently Delete Appointment
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete this appointment from the database? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {aptToDelete && (
+            <div className="space-y-3 py-2 text-sm">
+              <div className="rounded-lg bg-muted/60 p-3 space-y-1.5 border border-border">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Appointment ID:</span>
+                  <span className="font-mono font-medium">#{aptToDelete._id.slice(-8).toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Patient:</span>
+                  <span className="font-semibold">{aptToDelete.patientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date:</span>
+                  <span>{formatDate(aptToDelete.appointmentDate || aptToDelete.slot?.startTime || aptToDelete.createdAt)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <StatusBadge status={aptToDelete.status} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Unrelated patient records and medical files will remain safe and unaffected. Associated slot reservation will be released.
+              </p>
+            </div>
+          )}
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              disabled={deleteMutation.isPending}
+              onClick={() => setAptToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => aptToDelete && deleteMutation.mutate(aptToDelete._id)}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Permanently Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>

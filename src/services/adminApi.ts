@@ -79,6 +79,8 @@ export interface AppointmentDto {
   city?: string;
   pincode?: string;
   notes?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
   createdAt?: string;
 }
 
@@ -162,7 +164,9 @@ export interface PrescriptionDto {
   advice?: PrescriptionAdviceDto;
   notes?: string;
   pdf_url?: string;
+  pdf_s3_key?: string;
   image_url?: string;
+  image_s3_key?: string;
   status?: string;
   created_at?: string;
   updated_at?: string;
@@ -216,8 +220,11 @@ export interface ProductDto {
   stock?: number;
   in_stock?: boolean;
   image?: string;
+  image_s3_key?: string;
   image_alt?: string;
-  gallery?: { url: string; alt: string }[];
+  video_url?: string;
+  video_s3_key?: string;
+  gallery?: { url: string; alt: string; s3_key?: string }[];
   active?: boolean;
   featured?: boolean;
   recommended?: boolean;
@@ -250,10 +257,14 @@ export interface BlogDto {
   category?: string | CategoryDto;
   tags?: string[];
   image?: string;
+  featured_image?: string;
+  featured_image_alt?: string;
   featured?: boolean;
   published?: boolean;
+  published_at?: string;
   status?: string;
   author?: { name: string; email?: string } | string;
+  author_bio?: string;
   views?: number;
   readTime?: string;
   createdAt?: string;
@@ -278,6 +289,24 @@ export interface ReviewDto {
   updatedAt?: string;
 }
 
+export interface OrderShippingAddressDto {
+  street?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+}
+
+export interface OrderPaymentDto {
+  _id?: string;
+  amount?: number;
+  payment_method?: string;
+  status?: string;
+  razorpay_payment_id?: string;
+  razorpay_order_id?: string;
+  created_at?: string;
+}
+
 export interface OrderDto {
   _id: string;
   order_number: string;
@@ -286,12 +315,24 @@ export interface OrderDto {
   customer_phone?: string;
   items?: { product?: ProductDto; quantity: number; price: number }[];
   subtotal?: number;
+  tax?: number;
+  shipping_cost?: number;
   discount?: number;
   total: number;
   coupon_code?: string;
+  shipping_address?: OrderShippingAddressDto;
+  payment?: OrderPaymentDto | string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  razorpay_signature?: string;
   order_status: string;
   payment_status: string;
+  dispatch_date?: string;
+  tracking_number?: string;
+  courier_name?: string;
+  notes?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface CouponDto {
@@ -411,8 +452,23 @@ export const authApi = {
   },
 };
 
+export interface DashboardStatsDto {
+  totalAppointments: number;
+  totalSlots: number;
+  activePatients: number;
+  pendingApprovals: number;
+  totalRevenue: number;
+  totalOrders?: number;
+  onlineCount?: number;
+  offlineCount?: number;
+  monthlyTrends?: Array<{ month: string; revenue: number; appointments: number }>;
+  serverDate?: string;
+  [key: string]: any;
+}
+
 export const dashboardApi = {
-  get: async () => (await httpClient.get<Record<string, number>>("/admin/dashboard")).data,
+  get: async (params?: { startDate?: string; endDate?: string }): Promise<DashboardStatsDto> =>
+    (await httpClient.get<DashboardStatsDto>("/admin/dashboard", { params })).data,
 };
 
 export const appointmentsApi = {
@@ -421,6 +477,9 @@ export const appointmentsApi = {
     (await httpClient.patch<AppointmentDto>(`/admin/appointments/${id}/status`, { status })).data,
   complete: async (id: string) => (await httpClient.patch<AppointmentDto>(`/admin/appointments/${id}/complete`)).data,
   missed: async (id: string) => (await httpClient.patch<AppointmentDto>(`/admin/appointments/${id}/missed`)).data,
+  delete: async (id: string) => (await httpClient.delete<{ success: boolean; message: string }>(`/admin/appointments/${id}`)).data,
+  exportExcel: async (params?: { format?: "xlsx" | "csv"; status?: string; startDate?: string; endDate?: string }) =>
+    (await httpClient.get<{ success: boolean; message: string; data: { downloadUrl: string; filename: string; s3Key: string; count: number } }>("/admin/appointments/export/excel", { params })).data,
 };
 
 export const slotsApi = {
@@ -443,6 +502,10 @@ export const patientsApi = {
   create: async (data: Partial<PatientDto>) => (await httpClient.post<PatientDto>("/admin/patients", data)).data,
   createFamily: async (data: any) => (await httpClient.post<{ success: boolean; data: any }>("/admin/patients/family", data)).data,
   bulkImport: async (patients: any[]) => (await httpClient.post<{ success: boolean; data: any }>("/admin/patients/bulk-import", { patients })).data,
+  importExcel: async (formData: FormData) =>
+    (await httpClient.post<{ success: boolean; message: string; data: { count: number; importedPatients: any[]; errors: any[]; filename: string; s3Key?: string } }>("/admin/patients/import/excel", formData)).data,
+  exportExcel: async (params?: { format?: "xlsx" | "csv"; search?: string }) =>
+    (await httpClient.get<{ success: boolean; message: string; data: { downloadUrl: string; filename: string; s3Key: string; count: number } }>("/admin/patients/export/excel", { params })).data,
   update: async (id: string, data: Partial<PatientDto>) => (await httpClient.patch<PatientDto>(`/admin/patients/${id}`, data)).data,
   delete: async (id: string) => (await httpClient.delete(`/admin/patients/${id}`)).data,
   profile: async (id: string) => (await httpClient.get<unknown>(`/admin/patients/${id}/profile`)).data,
@@ -599,11 +662,24 @@ export const productsApi = {
     const res = await httpClient.patch<ProductDto>(`/admin/products/${id}`, formData);
     return mapProductDto(res.data);
   },
+  exportExcel: async (params?: { format?: "xlsx" | "csv"; category?: string; active?: string | boolean }) =>
+    (await httpClient.get<{ success: boolean; message: string; data: { downloadUrl: string; filename: string; s3Key: string; count: number } }>("/admin/products/export/excel", { params })).data,
 };
 
 export const ordersApi = {
   list: async (params?: ListParams) => unwrapList<OrderDto>(await httpClient.get("/admin/orders", { params })),
+  getById: async (id: string) => {
+    const res = await httpClient.get<OrderDto>(`/admin/orders/${id}`);
+    const payload = res as any;
+    return (payload?.data !== undefined ? payload.data : payload) as OrderDto;
+  },
   updateStatus: async (id: string, status: string) => (await httpClient.patch<OrderDto>(`/admin/orders/${id}/status`, { status })).data,
+  dispatch: async (id: string, data?: { tracking_number?: string; courier_name?: string; notes?: string }) =>
+    (await httpClient.post<{ success: boolean; data: OrderDto; message: string }>(`/admin/orders/${id}/dispatch`, data)).data,
+  delete: async (id: string, force = false) =>
+    (await httpClient.delete<{ success: boolean; message: string }>(`/admin/orders/${id}`, { params: { force } })).data,
+  exportExcel: async (params?: { format?: "xlsx" | "csv"; order_status?: string; payment_status?: string }) =>
+    (await httpClient.get<{ success: boolean; message: string; data: { downloadUrl: string; filename: string; s3Key: string; count: number } }>("/admin/orders/export/excel", { params })).data,
 };
 
 export const notificationsApi = {
@@ -686,3 +762,34 @@ export const couponsApi = {
   delete: async (id: string) => (await httpClient.delete(`/admin/coupons/${id}`)).data,
   getUsage: async (id: string, params?: ListParams) => unwrapList<CouponUsageDto>(await httpClient.get(`/admin/coupons/${id}/usage`, { params })),
 };
+
+export interface MediaUploadResult {
+  key: string;
+  s3Key: string;
+  url: string;
+  canonicalUrl?: string;
+  bucket: string;
+  filename?: string;
+  originalname?: string;
+  mimetype?: string;
+  contentType?: string;
+  size: number;
+}
+
+export const mediaApi = {
+  upload: async (formData: FormData) =>
+    (await httpClient.post<MediaUploadResult>("/admin/media/upload", formData)).data,
+  getPresignedUrl: async (key: string, options?: { download?: boolean; filename?: string }) =>
+    (await httpClient.get<{ url: string; key: string; expiresIn: number }>("/admin/media/presigned-url", { params: { key, download: options?.download, filename: options?.filename } })).data,
+  delete: async (key: string) =>
+    (await httpClient.delete<{ message: string; key?: string }>("/admin/media", { params: { key } })).data,
+};
+
+export const excelApi = {
+  importPatients: patientsApi.importExcel,
+  exportPatients: patientsApi.exportExcel,
+  exportAppointments: appointmentsApi.exportExcel,
+  exportOrders: ordersApi.exportExcel,
+  exportProducts: productsApi.exportExcel,
+};
+

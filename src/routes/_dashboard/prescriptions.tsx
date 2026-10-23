@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   Calendar,
   Check,
   Download,
@@ -29,10 +30,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import {
   patientsApi,
   prescriptionsApi,
+  mediaApi,
   type PatientDto,
   type PrescriptionDto,
 } from "@/services/adminApi";
 import { formatDate, getAge } from "@/lib/format";
+import { getAssetUrl } from "@/utils/httpsclient";
 
 export const Route = createFileRoute("/_dashboard/prescriptions")({
   component: PrescriptionsPage,
@@ -43,6 +46,23 @@ function PrescriptionsPage() {
   const [activeView, setActiveView] = useState<"pad" | "history">("pad");
   const [searchHistory, setSearchHistory] = useState("");
   const [previewRx, setPreviewRx] = useState<PrescriptionDto | null>(null);
+  const [templateError, setTemplateError] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Verify template image loading on mount
+  useEffect(() => {
+    const img = new Image();
+    img.src = `${import.meta.env.BASE_URL}prescription_template.jpg`;
+    img.onload = () => {
+      setTemplateError(false);
+    };
+    img.onerror = () => {
+      setTemplateError(true);
+      toast.error(
+        `Failed to load prescription template image from "${import.meta.env.BASE_URL}prescription_template.jpg". Please check the template file.`
+      );
+    };
+  }, []);
 
   // Pad State
   const [patientSearch, setPatientSearch] = useState("");
@@ -139,8 +159,8 @@ function PrescriptionsPage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  // Generate Composite Image (Template + Text + Drawing)
-  const generateCompositeImage = async (): Promise<string> => {
+  // Generate Composite Canvas (Template + Text + Drawing)
+  const generateCompositeCanvas = async (): Promise<HTMLCanvasElement> => {
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = 791;
     exportCanvas.height = 1024;
@@ -150,22 +170,22 @@ function PrescriptionsPage() {
     // 1. Draw template background image
     const templateImg = new Image();
     templateImg.crossOrigin = "anonymous";
-    await new Promise((resolve, reject) => {
-      templateImg.onload = resolve;
+    await new Promise<void>((resolve, reject) => {
+      templateImg.onload = () => resolve();
       templateImg.onerror = () => {
-        // Fallback: fill white background if image fails to load
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, 791, 1024);
-        resolve(null);
+        reject(
+          new Error(
+            `Prescription template image failed to load from "${import.meta.env.BASE_URL}prescription_template.jpg". Please ensure the template file exists in public/.`
+          )
+        );
       };
-      templateImg.src = "/prescription_template.jpg";
+      templateImg.src = `${import.meta.env.BASE_URL}prescription_template.jpg`;
     });
 
     try {
       ctx.drawImage(templateImg, 0, 0, 791, 1024);
-    } catch {
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, 791, 1024);
+    } catch (err: any) {
+      throw new Error(`Failed to draw prescription template onto canvas: ${err?.message || err}`);
     }
 
     // 2. Set Text Styles
@@ -229,13 +249,19 @@ function PrescriptionsPage() {
       ctx.drawImage(canvasRef.current, 0, 0, 791, 1024);
     }
 
-    return exportCanvas.toDataURL("image/jpeg", 0.94);
+    return exportCanvas;
+  };
+
+  const generateCompositeImage = async (): Promise<string> => {
+    const canvas = await generateCompositeCanvas();
+    return canvas.toDataURL("image/jpeg", 0.92);
   };
 
   // Upload Mutation
   const uploadMutation = useMutation({
     mutationFn: async (payload: any) => prescriptionsApi.create(payload),
     onSuccess: (res: any) => {
+      setIsUploading(false);
       const rxNo = res?.prescriptionNumber || res?.data?.prescriptionNumber || "";
       toast.success(
         `Prescription uploaded & saved successfully! ${rxNo ? `(${rxNo})` : ""}`
@@ -249,6 +275,7 @@ function PrescriptionsPage() {
       setActiveView("history");
     },
     onError: (err: any) => {
+      setIsUploading(false);
       toast.error(
         err?.response?.data?.message || err?.message || "Failed to upload prescription"
       );
@@ -269,15 +296,62 @@ function PrescriptionsPage() {
       toast.error("Please select a patient first");
       return;
     }
+    if (isUploading || uploadMutation.isPending) return;
 
+    setIsUploading(true);
     try {
-      toast.info("Preparing high-resolution prescription image...");
-      const imageData = await generateCompositeImage();
+      toast.info("Preparing prescription image...");
+      const exportCanvas = await generateCompositeCanvas();
+      const patientIdStr = String(selectedPatient.patientId || selectedPatient._id);
 
+      // 1. Convert canvas to JPEG blob
+      const blob = await new Promise<Blob | null>((resolve) =>
+        exportCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
+      );
+
+      if (!blob) {
+        throw new Error("Failed to generate prescription image blob from canvas.");
+      }
+
+      // 2. Upload binary JPEG blob to S3 via /admin/media/upload
+      toast.info("Uploading prescription image to S3...");
+      const formData = new FormData();
+      formData.append("file", blob, `prescription-${patientIdStr}-${Date.now()}.jpg`);
+      formData.append("module", "prescriptions");
+      formData.append("recordId", patientIdStr);
+      formData.append("category", "pad");
+
+      const mediaRes = await mediaApi.upload(formData);
+
+      // Extract URL and S3 key from /admin/media/upload response
+      const uploadedUrl =
+        (mediaRes as any)?.url ||
+        (mediaRes as any)?.data?.url ||
+        (mediaRes as any)?.canonicalUrl ||
+        (mediaRes as any)?.data?.canonicalUrl;
+
+      const uploadedKey =
+        (mediaRes as any)?.key ||
+        (mediaRes as any)?.s3Key ||
+        (mediaRes as any)?.data?.key ||
+        (mediaRes as any)?.data?.s3Key;
+
+      const uploadedBucket =
+        (mediaRes as any)?.bucket ||
+        (mediaRes as any)?.data?.bucket;
+
+      if (!uploadedUrl && !uploadedKey) {
+        throw new Error("Image upload did not return a valid URL or key.");
+      }
+
+      // 3. Send URL and prescription details to /admin/prescriptions (WITHOUT base64 imageData)
       uploadMutation.mutate({
-        patientId: selectedPatient.patientId || selectedPatient._id,
+        patientId: patientIdStr,
         prescriptionDate,
-        imageData,
+        imageUrl: uploadedUrl,
+        image_url: uploadedUrl,
+        image_s3_key: uploadedKey,
+        image_s3_bucket: uploadedBucket,
         vitals: {
           height: vitals.height,
           weight: vitals.weight,
@@ -293,7 +367,9 @@ function PrescriptionsPage() {
         notes: rxText,
       });
     } catch (err: any) {
-      toast.error("Error creating prescription image: " + err.message);
+      setIsUploading(false);
+      console.error("Prescription upload error:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to upload prescription image");
     }
   };
 
@@ -316,6 +392,10 @@ function PrescriptionsPage() {
       {/* Print Stylesheet */}
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
           body * {
             visibility: hidden !important;
           }
@@ -326,10 +406,13 @@ function PrescriptionsPage() {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 100% !important;
+            width: 791px !important;
+            height: 1024px !important;
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
@@ -445,11 +528,11 @@ function PrescriptionsPage() {
                   <Button
                     type="button"
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                    disabled={uploadMutation.isPending || !selectedPatient}
+                    disabled={isUploading || uploadMutation.isPending || !selectedPatient}
                     onClick={handleUploadAndSave}
                   >
                     <UploadCloud className="mr-1.5 h-4 w-4" />
-                    {uploadMutation.isPending ? "Uploading..." : "Upload & Save"}
+                    {isUploading || uploadMutation.isPending ? "Uploading..." : "Upload & Save"}
                   </Button>
                 </div>
               </div>
@@ -521,15 +604,6 @@ function PrescriptionsPage() {
                   >
                     <Download className="mr-1 h-3.5 w-3.5" /> Download Image
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => window.print()}
-                  >
-                    <Printer className="mr-1 h-3.5 w-3.5" /> Print
-                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -545,11 +619,45 @@ function PrescriptionsPage() {
                 height: "1024px",
                 minWidth: "791px",
                 minHeight: "1024px",
-                backgroundImage: "url('/prescription_template.jpg')",
+                backgroundImage: `url("${import.meta.env.BASE_URL}prescription_template.jpg")`,
                 backgroundSize: "791px 1024px",
                 backgroundRepeat: "no-repeat",
               }}
             >
+              {templateError && (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-red-50/95 border-2 border-dashed border-destructive/50 rounded-sm p-6 text-center">
+                  <div className="rounded-full bg-destructive/10 p-3 mb-3">
+                    <AlertTriangle className="h-8 w-8 text-destructive" />
+                  </div>
+                  <h3 className="font-semibold text-lg text-destructive">Template Image Failed to Load</h3>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                    The prescription template image could not be loaded from{" "}
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-semibold text-foreground">
+                      {`${import.meta.env.BASE_URL}prescription_template.jpg`}
+                    </code>
+                    . Please verify that the template image exists at <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">public/prescription_template.jpg</code>.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => {
+                      const retryImg = new Image();
+                      retryImg.src = `${import.meta.env.BASE_URL}prescription_template.jpg?t=${Date.now()}`;
+                      retryImg.onload = () => {
+                        setTemplateError(false);
+                        toast.success("Prescription template loaded successfully!");
+                      };
+                      retryImg.onerror = () => {
+                        setTemplateError(true);
+                        toast.error("Template image still cannot be loaded");
+                      };
+                    }}
+                  >
+                    <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Retry Loading
+                  </Button>
+                </div>
+              )}
               {/* 1. AUTO-FILLED PATIENT INFO OVER DOTTED LINES */}
               {/* UID */}
               <div
@@ -753,13 +861,13 @@ Example:
                   className="overflow-hidden border transition-all hover:shadow-md hover:border-primary/50"
                 >
                   {/* Prescription Pad Thumbnail Preview */}
-                  {rx.image_url ? (
+                  {(rx.image_url || rx.image_s3_key) ? (
                     <div
                       className="h-44 bg-muted/40 cursor-pointer overflow-hidden border-b flex items-center justify-center relative group"
                       onClick={() => setPreviewRx(rx)}
                     >
                       <img
-                        src={`${import.meta.env.VITE_API_URL || "http://localhost:5000"}${rx.image_url}`}
+                        src={getAssetUrl(rx.image_url || rx.image_s3_key)}
                         alt="Prescription"
                         className="w-full h-full object-cover object-top transition-transform group-hover:scale-105"
                       />
@@ -802,15 +910,14 @@ Example:
                       </Button>
 
                       <div className="flex gap-1">
-                        {rx.image_url && (
+                        {(rx.image_url || rx.image_s3_key) && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="h-7 text-xs"
                             onClick={() => {
-                              const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
                               const a = document.createElement("a");
-                              a.href = `${backendUrl}${rx.image_url}`;
+                              a.href = getAssetUrl(rx.image_url || rx.image_s3_key);
                               a.download = `Prescription_${rxNumber}.jpg`;
                               a.target = "_blank";
                               a.click();
@@ -864,10 +971,10 @@ Example:
           {previewRx && (
             <div className="space-y-4">
               {/* If an actual uploaded pad image exists */}
-              {previewRx.image_url ? (
+              {(previewRx.image_url || previewRx.image_s3_key) ? (
                 <div className="flex justify-center bg-gray-100 rounded-lg p-2 border">
                   <img
-                    src={`${import.meta.env.VITE_API_URL || "http://localhost:5000"}${previewRx.image_url}`}
+                    src={getAssetUrl(previewRx.image_url || previewRx.image_s3_key)}
                     alt="Prescription Slip"
                     className="max-w-full rounded shadow-md border"
                     style={{ maxHeight: "75vh" }}
@@ -882,13 +989,12 @@ Example:
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t">
-                {previewRx.image_url && (
+                {(previewRx.image_url || previewRx.image_s3_key) && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-                      const printWin = window.open(`${backendUrl}${previewRx.image_url}`, "_blank");
+                      const printWin = window.open(getAssetUrl(previewRx.image_url || previewRx.image_s3_key), "_blank");
                       printWin?.focus();
                     }}
                   >
@@ -896,13 +1002,12 @@ Example:
                   </Button>
                 )}
 
-                {previewRx.image_url && (
+                {(previewRx.image_url || previewRx.image_s3_key) && (
                   <Button
                     size="sm"
                     onClick={() => {
-                      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
                       const a = document.createElement("a");
-                      a.href = `${backendUrl}${previewRx.image_url}`;
+                      a.href = getAssetUrl(previewRx.image_url || previewRx.image_s3_key);
                       a.download = `Prescription_${previewRx.prescriptionNumber || "pad"}.jpg`;
                       a.target = "_blank";
                       a.click();

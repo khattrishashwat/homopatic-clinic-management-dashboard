@@ -12,6 +12,8 @@ import {
   Upload,
   X,
   Image as ImageIcon,
+  Download,
+  Video,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,9 +57,13 @@ function ProductsPage() {
   const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState("basic");
   const mainImageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const productsQuery = useQuery({
     queryKey: ["products"],
@@ -141,6 +147,11 @@ function ProductsPage() {
         });
       }
 
+      // Video
+      if (videoFile) {
+        productFormData.append("video", videoFile);
+      }
+
       if (editing) {
         return productsApi.update(editing._id, productFormData);
       } else {
@@ -177,6 +188,8 @@ function ProductsPage() {
     setMainImagePreview(null);
     setGalleryFiles([]);
     setGalleryPreviews([]);
+    setVideoFile(null);
+    setVideoPreview(null);
     setActiveTab("basic");
   };
 
@@ -184,13 +197,55 @@ function ProductsPage() {
     if (product) {
       setEditing(product);
       setMainImagePreview(getAssetUrl(product.image));
+      setVideoPreview(product.video_url ? getAssetUrl(product.video_url) : null);
     } else {
       setEditing(null);
       setMainImagePreview(null);
+      setVideoPreview(null);
     }
     setShowForm(true);
     setGalleryFiles([]);
     setGalleryPreviews([]);
+    setVideoFile(null);
+  };
+
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error("Video size should be less than 50MB");
+        return;
+      }
+      setVideoFile(file);
+      const url = URL.createObjectURL(file);
+      setVideoPreview(url);
+    }
+  };
+
+  const removeVideo = () => {
+    setVideoFile(null);
+    setVideoPreview(null);
+    if (videoInputRef.current) {
+      videoInputRef.current.value = "";
+    }
+  };
+
+  const handleExportProducts = async () => {
+    try {
+      setIsExporting(true);
+      const res = await productsApi.exportExcel();
+      const downloadUrl = res?.data?.downloadUrl;
+      if (downloadUrl) {
+        window.open(downloadUrl, "_blank");
+        toast.success(`Exported ${res?.data?.count ?? 0} products to Excel`);
+      } else {
+        toast.error("Export did not return a download URL");
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to export products to Excel");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleMainImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,9 +317,20 @@ function ProductsPage() {
           <h1 className="text-2xl font-bold">Products</h1>
           <p className="text-sm text-muted-foreground">Manage clinic products and packages</p>
         </div>
-        <Button size="sm" onClick={() => openForm()}>
-          <Plus className="mr-1 h-4 w-4" /> Add Product
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportProducts}
+            disabled={isExporting}
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {isExporting ? "Exporting..." : "Export to Excel"}
+          </Button>
+          <Button size="sm" onClick={() => openForm()}>
+            <Plus className="mr-1 h-4 w-4" /> Add Product
+          </Button>
+        </div>
       </div>
 
       {productsQuery.isLoading && (
@@ -343,6 +409,17 @@ function ProductsPage() {
                   </span>
                 )}
               </div>
+
+              {product.video_url && (
+                <div className="mt-2.5 overflow-hidden rounded-lg border bg-black/5">
+                  <video
+                    src={getAssetUrl(product.video_url)}
+                    controls
+                    preload="metadata"
+                    className="max-h-36 w-full rounded object-contain bg-black"
+                  />
+                </div>
+              )}
 
               <div className="mt-3 flex justify-end gap-1">
                 <Button
@@ -480,6 +557,45 @@ function ProductsPage() {
                     accept="image/*"
                     multiple
                     onChange={handleGallerySelect}
+                    className="hidden"
+                  />
+                </div>
+
+                {/* Product Video (S3) */}
+                <div className="space-y-2">
+                  <Label>Product Video (MP4 / WebM up to 50MB)</Label>
+                  {videoPreview ? (
+                    <div className="relative rounded-lg overflow-hidden border bg-black/5 p-2">
+                      <video
+                        src={videoPreview}
+                        controls
+                        className="max-h-48 w-full rounded object-contain bg-black"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="destructive"
+                        className="absolute right-3 top-3 h-6 w-6"
+                        onClick={removeVideo}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex h-24 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 hover:border-primary transition-colors"
+                      onClick={() => videoInputRef.current?.click()}
+                    >
+                      <Video className="mb-1 h-6 w-6 text-gray-400" />
+                      <p className="text-sm text-gray-500">Click to upload product video</p>
+                      <p className="text-xs text-gray-400">MP4, WebM, MOV</p>
+                    </div>
+                  )}
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,video/*"
+                    onChange={handleVideoSelect}
                     className="hidden"
                   />
                 </div>

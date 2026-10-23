@@ -399,7 +399,7 @@ function BlogsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="author">Author Name</Label>
-                    <Input id="author" name="author" placeholder="e.g., Dr. John Doe" defaultValue={editing?.author || "Homeopathy Team"} />
+                    <Input id="author" name="author" placeholder="e.g., Dr. John Doe" defaultValue={typeof editing?.author === "object" ? editing.author?.name : (editing?.author || "Homeopathy Team")} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="author_bio">Author Bio</Label>

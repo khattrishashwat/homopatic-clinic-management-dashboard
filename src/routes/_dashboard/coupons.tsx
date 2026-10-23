@@ -266,7 +266,7 @@ function CouponsPage() {
                 </TableRow>
               ) : (
                 coupons.map((coupon) => {
-                  const isExpired = coupon.endDate && new Date(coupon.endDate) < new Date();
+                  const isExpired = Boolean(coupon.endDate && new Date(coupon.endDate) < new Date());
                   return (
                     <TableRow key={coupon._id}>
                       <TableCell>

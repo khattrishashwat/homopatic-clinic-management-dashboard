@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import React, { Component, FormEvent, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -191,6 +191,44 @@ function downloadSampleTemplate() {
 }
 
 /* ========================================================================= */
+/* ERROR BOUNDARY FOR PATIENT DETAIL VIEW                                    */
+/* ========================================================================= */
+class DetailErrorBoundary extends React.Component<
+  { children: React.ReactNode; onBack: () => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("PatientDetailPage error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="p-8 text-center space-y-4 my-6">
+          <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+          <h2 className="text-lg font-bold text-foreground">Could not display patient details</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            {this.state.error?.message || "An unexpected error occurred while loading this patient profile."}
+          </p>
+          <div className="pt-2">
+            <Button variant="default" onClick={this.props.onBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Patients List
+            </Button>
+          </div>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ========================================================================= */
 /* DEDICATED PATIENT PROFILE & MEDICAL REPORTS PAGE (NO MODAL)               */
 /* ========================================================================= */
 function PatientDetailPage({
@@ -201,6 +239,7 @@ function PatientDetailPage({
   onBack: () => void;
 }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"reports" | "info" | "prescriptions">("reports");
 
   // Bulk Upload State
@@ -217,18 +256,48 @@ function PatientDetailPage({
   const [lightboxZoom, setLightboxZoom] = useState(1);
   const [reportSearch, setReportSearch] = useState("");
 
+  // Revoke object URLs on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((p) => {
+        try {
+          URL.revokeObjectURL(p.url);
+        } catch {}
+      });
+    };
+  }, [filePreviews]);
+
   // Queries
   const recordsQuery = useQuery({
-    queryKey: ["patient-medical-records", patient._id],
-    queryFn: () => medicalRecordsApi.list({ patientId: patient._id, limit: 100 }),
+    queryKey: ["patient-medical-records", patient?._id],
+    queryFn: () => medicalRecordsApi.list({ patientId: patient?._id, limit: 100 }),
+    enabled: Boolean(patient?._id),
   });
-  const records = recordsQuery.data?.data || [];
+  const recordsData = recordsQuery.data;
+  const records: MedicalRecordDto[] = Array.isArray(recordsData?.data)
+    ? recordsData.data
+    : Array.isArray(recordsData)
+    ? recordsData
+    : [];
 
   const prescriptionsQuery = useQuery({
-    queryKey: ["patient-prescriptions", patient.patientId || patient._id],
-    queryFn: () => prescriptionsApi.list({ search: patient.patientId || patient.name, limit: 50 }),
+    queryKey: ["patient-prescriptions", patient?.patientId || patient?._id],
+    queryFn: () => prescriptionsApi.list({ search: patient?.patientId || patient?.name, limit: 50 }),
+    enabled: Boolean(patient?.patientId || patient?._id),
   });
-  const prescriptions = prescriptionsQuery.data?.data || [];
+  const prescriptionsData = prescriptionsQuery.data;
+  const prescriptions: PrescriptionDto[] = Array.isArray(prescriptionsData?.data)
+    ? prescriptionsData.data
+    : Array.isArray(prescriptionsData)
+    ? prescriptionsData
+    : [];
+
+  // Safely parse medical history as an array regardless of whether it's stored as array, string, or comma-separated string
+  const medicalHistoryList: string[] = Array.isArray(patient?.medical_history)
+    ? patient.medical_history
+    : typeof patient?.medical_history === "string" && (patient.medical_history as string).trim()
+    ? (patient.medical_history as string).split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
 
   // Mutations
   const uploadBulkMutation = useMutation({
@@ -238,7 +307,7 @@ function PatientDetailPage({
       clearFiles();
       setBatchTitle("");
       setBatchNotes("");
-      queryClient.invalidateQueries({ queryKey: ["patient-medical-records", patient._id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-medical-records", patient?._id] });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || err?.message || "Failed to upload medical reports");
@@ -250,7 +319,7 @@ function PatientDetailPage({
     onSuccess: () => {
       toast.success("Medical report removed");
       if (lightboxRecord) setLightboxRecord(null);
-      queryClient.invalidateQueries({ queryKey: ["patient-medical-records", patient._id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-medical-records", patient?._id] });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || err?.message || "Failed to delete report");
@@ -273,13 +342,21 @@ function PatientDetailPage({
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
     setFilePreviews((prev) => {
-      if (prev[index]) URL.revokeObjectURL(prev[index].url);
+      if (prev[index]) {
+        try {
+          URL.revokeObjectURL(prev[index].url);
+        } catch {}
+      }
       return prev.filter((_, i) => i !== index);
     });
   };
 
   const clearFiles = () => {
-    filePreviews.forEach((p) => URL.revokeObjectURL(p.url));
+    filePreviews.forEach((p) => {
+      try {
+        URL.revokeObjectURL(p.url);
+      } catch {}
+    });
     setSelectedFiles([]);
     setFilePreviews([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -289,6 +366,10 @@ function PatientDetailPage({
     e.preventDefault();
     if (selectedFiles.length === 0) {
       toast.error("Please select at least one image or report file");
+      return;
+    }
+    if (!patient?._id) {
+      toast.error("Patient ID is missing");
       return;
     }
 
@@ -305,13 +386,13 @@ function PatientDetailPage({
     uploadBulkMutation.mutate(formData);
   };
 
-  const filteredRecords = records.filter((r) => {
+  const filteredRecords = (records || []).filter((r) => {
     if (!reportSearch.trim()) return true;
     const q = reportSearch.toLowerCase();
     return (
-      r.title?.toLowerCase().includes(q) ||
-      r.file_type?.toLowerCase().includes(q) ||
-      r.description?.toLowerCase().includes(q)
+      (r.title && r.title.toLowerCase().includes(q)) ||
+      (r.file_type && r.file_type.toLowerCase().includes(q)) ||
+      (r.description && r.description.toLowerCase().includes(q))
     );
   });
 
@@ -325,22 +406,25 @@ function PatientDetailPage({
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{patient?.name || "Patient Profile"}</h1>
               <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded">
-                {patient.patientId}
+                {patient?.patientId || "-"}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {getAge(patient.dob)} yrs · {patient.gender || "Not specified"} · Registered on {formatDate(patient.created_at)}
+              {getAge(patient?.dob)} yrs · {patient?.gender || "Not specified"} · Registered on {formatDate(patient?.created_at)}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" asChild>
-            <Link to="/prescriptions">
-              <PenTool className="mr-1.5 h-4 w-4 text-primary" /> Open Prescription Pad
-            </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate({ to: "/prescriptions" })}
+            className="font-medium"
+          >
+            <PenTool className="mr-1.5 h-4 w-4 text-primary" /> Open Prescription Pad
           </Button>
         </div>
       </div>
@@ -354,7 +438,7 @@ function PatientDetailPage({
             </div>
             <div>
               <p className="text-muted-foreground font-medium">Phone</p>
-              <p className="font-semibold text-foreground">{patient.phone || "-"}</p>
+              <p className="font-semibold text-foreground">{patient?.phone || "-"}</p>
             </div>
           </div>
 
@@ -364,7 +448,7 @@ function PatientDetailPage({
             </div>
             <div>
               <p className="text-muted-foreground font-medium">Email</p>
-              <p className="font-semibold text-foreground truncate max-w-[150px]">{patient.email || "-"}</p>
+              <p className="font-semibold text-foreground truncate max-w-[150px]">{patient?.email || "-"}</p>
             </div>
           </div>
 
@@ -374,7 +458,7 @@ function PatientDetailPage({
             </div>
             <div>
               <p className="text-muted-foreground font-medium">Address</p>
-              <p className="font-semibold text-foreground truncate max-w-[180px]">{getAddressText(patient.address)}</p>
+              <p className="font-semibold text-foreground truncate max-w-[180px]">{getAddressText(patient?.address)}</p>
             </div>
           </div>
 
@@ -384,7 +468,7 @@ function PatientDetailPage({
             </div>
             <div>
               <p className="text-muted-foreground font-medium">Family Group</p>
-              <p className="font-semibold text-foreground">{patient.family_group || "Individual"}</p>
+              <p className="font-semibold text-foreground">{patient?.family_group || "Individual"}</p>
             </div>
           </div>
         </CardContent>
@@ -415,7 +499,7 @@ function PatientDetailPage({
                     <UploadCloud className="h-5 w-5 text-primary" /> Bulk Upload Medical Reports & Images
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Upload multiple images (.png, .jpg, .jpeg, .webp) and PDF reports at once for {patient.name}
+                    Upload multiple images (.png, .jpg, .jpeg, .webp) and PDF reports at once for {patient?.name}
                   </p>
                 </div>
                 {selectedFiles.length > 0 && (
@@ -581,145 +665,6 @@ function PatientDetailPage({
             </CardContent>
           </Card>
 
-          {/* MEDICAL REPORTS GALLERY */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">
-                  Saved Medical Reports & Test Images ({records.length})
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Click on any image report to view high-resolution full screen, download, or print
-                </p>
-              </div>
-
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search reports by title or notes..."
-                  className="pl-8 h-8 text-xs"
-                  value={reportSearch}
-                  onChange={(e) => setReportSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {recordsQuery.isLoading && (
-              <p className="text-sm text-muted-foreground">Loading medical records...</p>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredRecords.map((record) => {
-                const isImage = !record.file_type?.includes("pdf");
-                const assetUrl = getAssetUrl(record.file_url);
-
-                return (
-                  <Card
-                    key={record._id}
-                    className="overflow-hidden border transition-all hover:shadow-md hover:border-primary/50 group"
-                  >
-                    {/* Visual Preview */}
-                    {isImage ? (
-                      <div
-                        className="h-44 bg-muted/40 cursor-pointer overflow-hidden border-b relative"
-                        onClick={() => {
-                          setLightboxRecord(record);
-                          setLightboxZoom(1);
-                        }}
-                      >
-                        <img
-                          src={assetUrl}
-                          alt={record.title}
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1.5">
-                          <Eye className="h-4 w-4" /> View Full Image
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        className="h-44 bg-destructive/5 cursor-pointer flex flex-col items-center justify-center border-b p-4 text-destructive"
-                        onClick={() => window.open(assetUrl, "_blank")}
-                      >
-                        <FileText className="h-12 w-12 mb-2" />
-                        <span className="text-xs font-semibold">PDF Document</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">Click to open</span>
-                      </div>
-                    )}
-
-                    <CardContent className="p-3 space-y-1.5">
-                      <div className="flex items-start justify-between gap-1">
-                        <h4 className="font-semibold text-xs text-foreground truncate" title={record.title}>
-                          {record.title}
-                        </h4>
-                        <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
-                          {record.file_type?.split("/")[1] || "file"}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        <span>{formatDate(record.record_date || record.created_at)}</span>
-                      </div>
-
-                      {record.description && (
-                        <p className="text-[11px] text-muted-foreground truncate">{record.description}</p>
-                      )}
-
-                      <div className="flex items-center justify-between pt-2 border-t text-xs">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs text-primary px-2"
-                          onClick={() => {
-                            if (isImage) {
-                              setLightboxRecord(record);
-                              setLightboxZoom(1);
-                            } else {
-                              window.open(assetUrl, "_blank");
-                            }
-                          }}
-                        >
-                          <Eye className="mr-1 h-3.5 w-3.5" /> View
-                        </Button>
-
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            asChild
-                          >
-                            <a href={assetUrl} download target="_blank" rel="noreferrer">
-                              <Download className="h-3 w-3" />
-                            </a>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
-                            onClick={() => deleteRecordMutation.mutate(record._id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-
-            {!recordsQuery.isLoading && records.length === 0 && (
-              <Card className="p-10 text-center text-muted-foreground border-dashed">
-                <FolderOpen className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
-                <p className="font-medium text-sm">No medical reports uploaded yet</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Use the upload box above to add blood tests, x-rays, scan photos, or PDFs.
-                </p>
-              </Card>
-            )}
-          </div>
         </TabsContent>
 
         {/* TAB 2: PATIENT INFO & CONDITIONS */}
@@ -731,56 +676,40 @@ function PatientDetailPage({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-xs text-muted-foreground block">Full Name</span>
-                    <span className="font-semibold text-foreground">{patient.name}</span>
+                    <span className="font-semibold text-foreground">{patient?.name || "-"}</span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block">Patient UID</span>
-                    <span className="font-mono font-semibold text-primary">{patient.patientId}</span>
+                    <span className="font-mono font-semibold text-primary">{patient?.patientId || "-"}</span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block">Date of Birth / Age</span>
                     <span className="font-semibold text-foreground">
-                      {patient.dob ? formatDate(patient.dob) : "N/A"} ({getAge(patient.dob)} years)
+                      {patient?.dob ? formatDate(patient.dob) : "N/A"} ({getAge(patient?.dob)} years)
                     </span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block">Gender</span>
-                    <span className="font-semibold text-foreground capitalize">{patient.gender || "-"}</span>
+                    <span className="font-semibold text-foreground capitalize">{patient?.gender || "-"}</span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block">Phone Number</span>
-                    <span className="font-semibold text-foreground">{patient.phone}</span>
+                    <span className="font-semibold text-foreground">{patient?.phone || "-"}</span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block">Email Address</span>
-                    <span className="font-semibold text-foreground">{patient.email}</span>
+                    <span className="font-semibold text-foreground">{patient?.email || "-"}</span>
                   </div>
                   <div className="col-span-2">
                     <span className="text-xs text-muted-foreground block">Residential Address</span>
-                    <span className="font-semibold text-foreground">{getAddressText(patient.address)}</span>
+                    <span className="font-semibold text-foreground">{getAddressText(patient?.address)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-semibold text-foreground mb-2">Medical History & Conditions</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {(patient.medical_history || []).length > 0 ? (
-                    patient.medical_history!.map((cond) => (
-                      <span
-                        key={cond}
-                        className="rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium"
-                      >
-                        {cond}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No pre-existing conditions recorded</span>
-                  )}
-                </div>
-              </div>
 
-              {patient.family_group && (
+
+              {patient?.family_group && (
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-semibold text-foreground mb-2">Family Group</h3>
                   <div className="rounded-lg bg-muted/30 p-3 flex items-center justify-between text-xs">
@@ -802,24 +731,24 @@ function PatientDetailPage({
         <TabsContent value="prescriptions" className="mt-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-foreground">Prescription History ({prescriptions.length})</h3>
-            <Button size="sm" asChild>
-              <Link to="/prescriptions">
-                <PenTool className="mr-1.5 h-4 w-4" /> Write New Prescription
-              </Link>
+            <Button
+              size="sm"
+              onClick={() => navigate({ to: "/prescriptions" })}
+            >
+              <PenTool className="mr-1.5 h-4 w-4" /> Write New Prescription
             </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {prescriptions.map((rx) => {
               const rxNumber = rx.prescriptionNumber || `RX-${rx._id.slice(-6).toUpperCase()}`;
-              const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
               return (
                 <Card key={rx._id} className="overflow-hidden border transition-all hover:shadow-md">
-                  {rx.image_url ? (
+                  {(rx.image_url || rx.image_s3_key) ? (
                     <div className="h-40 bg-muted/40 overflow-hidden border-b flex items-center justify-center">
                       <img
-                        src={`${backendUrl}${rx.image_url}`}
+                        src={getAssetUrl(rx.image_url || rx.image_s3_key)}
                         alt="Prescription"
                         className="w-full h-full object-cover object-top"
                       />
@@ -840,13 +769,13 @@ function PatientDetailPage({
                       </span>
                     </div>
 
-                    {rx.image_url && (
+                    {(rx.image_url || rx.image_s3_key) && (
                       <div className="flex items-center justify-end gap-1 pt-2 border-t">
                         <Button
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs"
-                          onClick={() => window.open(`${backendUrl}${rx.image_url}`, "_blank")}
+                          onClick={() => window.open(getAssetUrl(rx.image_url || rx.image_s3_key), "_blank")}
                         >
                           <Eye className="mr-1 h-3 w-3" /> View Pad
                         </Button>
@@ -856,7 +785,7 @@ function PatientDetailPage({
                           className="h-7 text-xs"
                           asChild
                         >
-                          <a href={`${backendUrl}${rx.image_url}`} download={`Prescription_${rxNumber}.jpg`}>
+                          <a href={getAssetUrl(rx.image_url || rx.image_s3_key)} target="_blank" rel="noreferrer" download={`Prescription_${rxNumber}.jpg`}>
                             <Download className="h-3 w-3" />
                           </a>
                         </Button>
@@ -872,10 +801,12 @@ function PatientDetailPage({
             <Card className="p-10 text-center text-muted-foreground border-dashed">
               <FileText className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
               <p className="font-medium text-sm">No prescriptions written for this patient yet</p>
-              <Button size="sm" className="mt-3" asChild>
-                <Link to="/prescriptions">
-                  <PenTool className="mr-1.5 h-4 w-4" /> Open Pad & Prescribe
-                </Link>
+              <Button
+                size="sm"
+                className="mt-3"
+                onClick={() => navigate({ to: "/prescriptions" })}
+              >
+                <PenTool className="mr-1.5 h-4 w-4" /> Open Pad & Prescribe
               </Button>
             </Card>
           )}
@@ -887,13 +818,13 @@ function PatientDetailPage({
         <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between pr-6">
-              <span>{lightboxRecord?.title}</span>
+              <span>{lightboxRecord?.title || "Medical Report"}</span>
               <span className="text-xs font-mono font-normal text-muted-foreground">
                 {formatDate(lightboxRecord?.record_date || lightboxRecord?.created_at)}
               </span>
             </DialogTitle>
             <DialogDescription>
-              Patient: {patient.name} ({patient.patientId})
+              Patient: {patient?.name || "-"} ({patient?.patientId || "-"})
             </DialogDescription>
           </DialogHeader>
 
@@ -902,7 +833,7 @@ function PatientDetailPage({
               <div className="overflow-auto max-h-[70vh] rounded-lg border bg-black/5 flex items-center justify-center p-2">
                 <img
                   src={getAssetUrl(lightboxRecord.file_url)}
-                  alt={lightboxRecord.title}
+                  alt={lightboxRecord.title || "Report"}
                   style={{ transform: `scale(${lightboxZoom})`, transition: "transform 0.2s" }}
                   className="max-w-full rounded shadow-sm object-contain"
                 />
@@ -1000,57 +931,28 @@ function PatientsPage() {
     return acc;
   }, {});
 
-  // Synchronize selected patient with URL query param for deep linking & browser back/forward
+  // Clean any leftover URL search params on mount to avoid router confusion
   useEffect(() => {
-    const handleUrlChange = () => {
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        const pid = params.get("patientId");
-        if (pid) {
-          const match = patients.find((p) => p._id === pid || p.patientId === pid);
-          if (match) {
-            setSelectedPatient(match);
-            return;
-          }
-        }
-        if (!pid) {
-          setSelectedPatient(null);
-        }
+    if (typeof window !== "undefined" && window.location.search.includes("patientId")) {
+      const url = new URL(window.location.href);
+      const pid = url.searchParams.get("patientId");
+      if (pid && patients.length > 0 && !selectedPatient) {
+        const found = patients.find((p) => p._id === pid || p.patientId === pid);
+        if (found) setSelectedPatient(found);
       }
-    };
-
-    handleUrlChange();
-    window.addEventListener("popstate", handleUrlChange);
-    return () => window.removeEventListener("popstate", handleUrlChange);
-  }, [patients]);
+      try {
+        window.history.replaceState({}, "", window.location.pathname);
+      } catch {}
+    }
+  }, [patients, selectedPatient]);
 
   const handleViewPatient = (patient: PatientDto) => {
     setSelectedPatient(patient);
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.set("patientId", patient._id);
-      window.history.pushState({}, "", url.toString());
-    }
   };
 
   const handleBackToList = () => {
     setSelectedPatient(null);
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("patientId");
-      window.history.pushState({}, "", url.toString());
-    }
   };
-
-  // If a patient is selected, render the dedicated new page (NO MODAL)!
-  if (selectedPatient) {
-    return (
-      <PatientDetailPage
-        patient={selectedPatient}
-        onBack={handleBackToList}
-      />
-    );
-  }
 
   const createMutation = useMutation({
     mutationFn: (formData: FormData) =>
@@ -1132,6 +1034,47 @@ function PatientsPage() {
     },
   });
 
+  const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const excelImportMutation = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return patientsApi.importExcel(formData);
+    },
+    onSuccess: (res: any) => {
+      const summary = res.data || res;
+      toast.success(res.message || `Import complete via S3: ${summary.count || 0} patients registered`);
+      setShowAddForm(false);
+      setSelectedExcelFile(null);
+      setBulkRows([]);
+      setBulkFileName("");
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to import file via S3");
+    },
+  });
+
+  const handleExportPatients = async () => {
+    try {
+      setIsExporting(true);
+      const res = await patientsApi.exportExcel({ search });
+      const downloadUrl = res?.data?.downloadUrl;
+      if (downloadUrl) {
+        window.open(downloadUrl, "_blank");
+        toast.success(`Exported ${res?.data?.count ?? 0} patients to Excel`);
+      } else {
+        toast.error("Export did not return a download URL");
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to export patients to Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleCreateFamily = (e: FormEvent) => {
     e.preventDefault();
     if (!headData.name.trim()) {
@@ -1174,19 +1117,26 @@ function PatientsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setBulkFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const parsed = parseCSV(text);
-      setBulkRows(parsed);
-      if (parsed.length === 0) {
-        toast.error("No valid records found in file. Please ensure proper CSV format.");
-      } else {
-        const validCount = parsed.filter((r) => r.isValid).length;
-        toast.info(`Loaded ${parsed.length} rows (${validCount} valid)`);
-      }
-    };
-    reader.readAsText(file);
+    setSelectedExcelFile(file);
+
+    if (file.name.endsWith(".csv")) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const parsed = parseCSV(text);
+        setBulkRows(parsed);
+        if (parsed.length === 0) {
+          toast.error("No valid records found in file. Please ensure proper CSV format.");
+        } else {
+          const validCount = parsed.filter((r) => r.isValid).length;
+          toast.info(`Loaded ${parsed.length} rows (${validCount} valid). Ready for S3 import.`);
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      setBulkRows([]);
+      toast.info(`Spreadsheet "${file.name}" ready for secure AWS S3 import.`);
+    }
   };
 
   const addFamilyMember = () => {
@@ -1214,6 +1164,19 @@ function PatientsPage() {
     );
   };
 
+  // If a patient is selected, render the dedicated new page with Error Boundary (NO MODAL)!
+  // Placed AFTER all hooks have executed so React hook order is 100% stable across all renders
+  if (selectedPatient) {
+    return (
+      <DetailErrorBoundary onBack={handleBackToList}>
+        <PatientDetailPage
+          patient={selectedPatient}
+          onBack={handleBackToList}
+        />
+      </DetailErrorBoundary>
+    );
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1221,9 +1184,20 @@ function PatientsPage() {
           <h1 className="text-2xl font-bold">Patient Management</h1>
           <p className="text-sm text-muted-foreground">{patientsQuery.data?.pagination?.total || patients.length} registered patients</p>
         </div>
-        <Button size="sm" onClick={() => setShowAddForm(true)}>
-          <UserPlus className="mr-1 h-4 w-4" /> Add Patient
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportPatients}
+            disabled={isExporting}
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {isExporting ? "Exporting..." : "Export to Excel"}
+          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)}>
+            <UserPlus className="mr-1.5 h-4 w-4" /> Add Patient
+          </Button>
+        </div>
       </div>
 
       {Object.keys(familyGroups).length > 0 && (
@@ -1578,19 +1552,32 @@ function PatientsPage() {
               {/* Upload Drop Area */}
               <div className="rounded-lg border-2 border-dashed p-6 text-center hover:bg-muted/10 transition-colors">
                 <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                <h5 className="mt-2 text-sm font-medium">Upload Patients CSV / Excel File</h5>
+                <h5 className="mt-2 text-sm font-medium">Upload Patients Spreadsheet (Excel / CSV)</h5>
                 <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-                  Supported formats: .csv (with columns: name, phone, email, dob, gender, etc.)
+                  Supported formats: .xlsx, .xls, .csv · Auto-processed securely via AWS S3
                 </p>
-                <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4">
-                  Select File
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-                </label>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4">
+                    Select File (.xlsx / .csv)
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                  </label>
+                  {selectedExcelFile && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => excelImportMutation.mutate(selectedExcelFile)}
+                      disabled={excelImportMutation.isPending}
+                    >
+                      <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
+                      {excelImportMutation.isPending ? "Uploading to S3..." : "Upload & Import via S3"}
+                    </Button>
+                  )}
+                </div>
                 {bulkFileName && (
                   <p className="mt-2 text-xs font-medium text-primary">Selected: {bulkFileName}</p>
                 )}

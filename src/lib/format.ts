@@ -1,13 +1,90 @@
-export const formatDate = (value?: string) => {
+export const formatDate = (value?: string | Date | null) => {
   if (!value) return "-";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-IN");
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
 };
 
-export const formatTime = (value?: string) => {
+export const formatTime = (value?: string | Date | null) => {
   if (!value) return "-";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+};
+
+export const formatDateTime = (value?: string | Date | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return `${formatDate(value)}, ${formatTime(value)}`;
+};
+
+/**
+ * Formats a phone number for WhatsApp links (digits only with country code, no + or symbols).
+ * Defaults to India (+91) for standard 10-digit mobile numbers.
+ */
+export const formatWhatsAppPhone = (phone?: string): string => {
+  if (!phone) return "";
+  const cleaned = phone.replace(/[^\d]/g, "");
+  if (!cleaned) return "";
+
+  // If 10 digits, prepend 91 (standard Indian mobile format)
+  if (cleaned.length === 10) {
+    return `91${cleaned}`;
+  }
+  // If 11 digits starting with 0, replace 0 with 91
+  if (cleaned.length === 11 && cleaned.startsWith("0")) {
+    return `91${cleaned.slice(1)}`;
+  }
+  // Already includes country code or international format
+  return cleaned;
+};
+
+export interface WhatsAppDispatchParams {
+  customerName: string;
+  orderNumber: string;
+  orderDate?: string | Date | null;
+  dispatchDate?: string | Date | null;
+  shippingAddress?: string;
+  trackingNumber?: string;
+  customerPhone?: string;
+}
+
+export const buildWhatsAppDispatchMessage = (params: WhatsAppDispatchParams): string => {
+  const name = params.customerName || "Valued Customer";
+  const orderNum = params.orderNumber || "-";
+  const ordDate = params.orderDate ? formatDate(params.orderDate) : "Recent";
+  const dispDate = params.dispatchDate ? formatDate(params.dispatchDate) : formatDate(new Date());
+  const address = params.shippingAddress || "As registered in your order";
+  const tracking = params.trackingNumber ? params.trackingNumber.trim() : "Standard Delivery (Tracking available on request)";
+
+  return `Hello ${name},
+
+Your order #${orderNum} has been dispatched successfully.
+
+Order Date: ${ordDate}
+Dispatch Date: ${dispDate}
+Delivery Address: ${address}
+Tracking Number: ${tracking}
+
+Thank you for shopping with us!`;
+};
+
+export const buildWhatsAppDispatchUrl = (params: WhatsAppDispatchParams): string | null => {
+  const phone = formatWhatsAppPhone(params.customerPhone);
+  if (!phone) return null;
+  const message = buildWhatsAppDispatchMessage(params);
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 };
 
 export const formatCurrency = (value?: number) =>
