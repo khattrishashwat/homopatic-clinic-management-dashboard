@@ -286,6 +286,8 @@ export interface ReviewDto {
   profileImage?: string;
   relativeTime?: string;
   approved: boolean;
+  status?: "pending" | "approved" | "rejected";
+  verified_purchase?: boolean;
   order?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -714,7 +716,7 @@ export const categoriesApi = {
 };
 
 export const reviewsApi = {
-  list: async (params?: ListParams & { review_type?: string; type?: string }) => {
+  list: async (params?: ListParams & { review_type?: string; type?: string; status?: string; product?: string; target_slug?: string; search?: string }) => {
     const p = { ...params };
     if (p.review_type && !p.type) {
       p.type = p.review_type;
