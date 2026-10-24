@@ -62,16 +62,15 @@ interface ParsedBulkRow {
   name: string;
   phone: string;
   email: string;
-  dob?: string;
-  gender?: "male" | "female" | "other";
-  street?: string;
+  age?: number | string;
+  gender?: "M" | "F" | string;
+  address?: string;
   city?: string;
-  state?: string;
   postal_code?: string;
   family_group?: string;
   relationship?: string;
-  medical_history?: string;
   notes?: string;
+  date_of_admission?: string;
   isValid: boolean;
   errors: string[];
 }
@@ -100,8 +99,6 @@ function parseCSV(text: string): ParsedBulkRow[] {
   if (lines.length < 2) return [];
 
   const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase());
-  const seenEmails = new Set<string>();
-  const seenPhones = new Set<string>();
   const rows: ParsedBulkRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -116,55 +113,45 @@ function parseCSV(text: string): ParsedBulkRow[] {
     const name = rowObj["name"] || rowObj["full name"] || "";
     const phone = rowObj["phone"] || rowObj["phone number"] || rowObj["mobile"] || "";
     const email = rowObj["email"] || rowObj["email address"] || "";
-    const dob = rowObj["dob"] || rowObj["date of birth"] || "";
-    const rawGender = (rowObj["gender"] || "other").toLowerCase();
-    const gender: "male" | "female" | "other" = ["male", "female", "other"].includes(rawGender)
-      ? (rawGender as "male" | "female" | "other")
-      : "other";
-    const street = rowObj["street"] || rowObj["address"] || "";
+
+    const rawAge = rowObj["age"];
+    const age = rawAge && !isNaN(Number(rawAge)) ? Number(rawAge) : rawAge || "";
+
+    let gender: "M" | "F" | "" = "";
+    const rawGender = (rowObj["gender"] || "").trim().toUpperCase();
+    if (rawGender === "M" || rawGender === "MALE") gender = "M";
+    else if (rawGender === "F" || rawGender === "FEMALE") gender = "F";
+
+    const address = rowObj["address"] || rowObj["street"] || "";
     const city = rowObj["city"] || "";
-    const state = rowObj["state"] || "";
     const postal_code = rowObj["postal_code"] || rowObj["pincode"] || rowObj["zip"] || "";
     const family_group = rowObj["family_group"] || rowObj["family group"] || "";
     const relationship = rowObj["relationship"] || "";
-    const medical_history = rowObj["medical_history"] || rowObj["conditions"] || "";
     const notes = rowObj["notes"] || "";
+    const date_of_admission =
+      rowObj["date of admission"] ||
+      rowObj["date_of_admission"] ||
+      rowObj["dateofadmission"] ||
+      rowObj["admission_date"] ||
+      "";
 
-    const errors: string[] = [];
-    if (!name) errors.push("Name is required");
-    if (!phone) errors.push("Phone is required");
-    if (!email) errors.push("Email is required");
-    else if (!email.includes("@")) errors.push("Invalid email format");
-
-    if (email && seenEmails.has(email.toLowerCase())) {
-      errors.push("Duplicate email in file");
-    } else if (email) {
-      seenEmails.add(email.toLowerCase());
-    }
-
-    if (phone && seenPhones.has(phone)) {
-      errors.push("Duplicate phone in file");
-    } else if (phone) {
-      seenPhones.add(phone);
-    }
-
+    // All columns are optional. Duplicate phone, email, and address allowed.
     rows.push({
       rowNum: i + 1,
       name,
       phone,
       email,
-      dob,
+      age,
       gender,
-      street,
+      address,
       city,
-      state,
       postal_code,
       family_group,
       relationship,
-      medical_history,
       notes,
-      isValid: errors.length === 0,
-      errors,
+      date_of_admission,
+      isValid: true,
+      errors: [],
     });
   }
 
@@ -173,12 +160,11 @@ function parseCSV(text: string): ParsedBulkRow[] {
 
 function downloadSampleTemplate() {
   const csvContent =
-    "name,phone,email,dob,gender,street,city,state,postal_code,family_group,relationship,medical_history,notes\n" +
-    "Amit Verma,9811122233,amit.v@gmail.com,1988-06-20,male,45 MG Road,Delhi,Delhi,110001,,,Sinusitis,Individual patient\n" +
-    "Sneha Patel,9822233344,sneha.p@gmail.com,1995-11-12,female,102 SG Highway,Ahmedabad,Gujarat,380015,,,Thyroid,Individual patient\n" +
-    "Rajesh Sharma,9833344455,rajesh.s@gmail.com,1980-03-15,male,Plot 14 Vaishali,Jaipur,Rajasthan,302021,FAM-SHARMA,Head,Hypertension,Family primary head\n" +
-    "Sunita Sharma,9833344456,sunita.s@gmail.com,1984-08-22,female,Plot 14 Vaishali,Jaipur,Rajasthan,302021,FAM-SHARMA,Spouse,Migraine,Family member\n" +
-    "Aarav Sharma,9833344455,aarav.s@gmail.com,2012-10-05,male,Plot 14 Vaishali,Jaipur,Rajasthan,302021,FAM-SHARMA,Child,Asthma,Minor child\n";
+    "name,phone,email,age,gender,address,city,postal_code,family_group,relationship,notes,Date of Admission\n" +
+    'Rajesh Sharma,9811012345,rajesh.sharma@example.com,48,M,"Flat 402, Shivalik Apartments, Rohini Sector 9",Delhi,110085,FAM-SHARMA,Head,Family Head; regular follow-up required,2026-10-15\n' +
+    'Sunita Sharma,9811012345,rajesh.sharma@example.com,44,F,"Flat 402, Shivalik Apartments, Rohini Sector 9",Delhi,110085,FAM-SHARMA,Spouse,Sensitive to cold weather,2026-10-15\n' +
+    'Aarav Sharma,9811012345,rajesh.sharma@example.com,12,M,"Flat 402, Shivalik Apartments, Rohini Sector 9",Delhi,110085,FAM-SHARMA,Child,Recurrent seasonal cough,2026-10-15\n' +
+    'Amit Verma,9822233344,amit.v@gmail.com,36,M,"45 MG Road",Delhi,110001,,,Individual patient,2026-10-22\n';
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -683,14 +669,20 @@ function PatientDetailPage({
                     <span className="font-mono font-semibold text-primary">{patient?.patientId || "-"}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-muted-foreground block">Date of Birth / Age</span>
+                    <span className="text-xs text-muted-foreground block">Age</span>
                     <span className="font-semibold text-foreground">
-                      {patient?.dob ? formatDate(patient.dob) : "N/A"} ({getAge(patient?.dob)} years)
+                      {patient?.age !== undefined && patient?.age !== null ? `${patient.age} years` : (patient?.dob ? `${getAge(patient.dob)} years` : "-")}
                     </span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block">Gender</span>
-                    <span className="font-semibold text-foreground capitalize">{patient?.gender || "-"}</span>
+                    <span className="font-semibold text-foreground">{patient?.gender || "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Date of Admission</span>
+                    <span className="font-semibold text-foreground">
+                      {patient?.date_of_admission ? formatDate(patient.date_of_admission) : "-"}
+                    </span>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground block">Phone Number</span>
@@ -958,10 +950,11 @@ function PatientsPage() {
     mutationFn: (formData: FormData) =>
       patientsApi.create({
         name: String(formData.get("name") || ""),
-        email: String(formData.get("email") || ""),
+        date_of_admission: String(formData.get("date_of_admission") || ""),
+        age: formData.get("age") && !isNaN(Number(formData.get("age"))) ? Number(formData.get("age")) : undefined,
+        gender: String(formData.get("gender") || "") as any,
         phone: String(formData.get("phone") || ""),
-        gender: String(formData.get("gender") || "other") as PatientDto["gender"],
-        dob: String(formData.get("dob") || ""),
+        email: String(formData.get("email") || ""),
         address: { street: String(formData.get("address") || "") },
       }),
     onSuccess: (res: any) => {
@@ -1077,21 +1070,8 @@ function PatientsPage() {
 
   const handleCreateFamily = (e: FormEvent) => {
     e.preventDefault();
-    if (!headData.name.trim()) {
-      toast.error("Family Head Name is required");
-      return;
-    }
-    if (!headData.phone.trim()) {
-      toast.error("Family Head Phone is required");
-      return;
-    }
-    if (!headData.email.trim()) {
-      toast.error("Family Head Email is required");
-      return;
-    }
-
     familyMutation.mutate({
-      familyName: familyName.trim() || `${headData.name.trim()}'s Family`,
+      familyName: familyName.trim() || `${headData.name.trim() || 'Patient'}'s Family`,
       sharedAddress,
       head: {
         name: headData.name.trim(),
@@ -1214,7 +1194,7 @@ function PatientsPage() {
                     <button key={member._id} onClick={() => handleViewPatient(member)} className="flex w-full items-center justify-between rounded-lg bg-card p-2.5 text-sm transition-shadow hover:shadow-sm">
                       <div>
                         <p className="font-medium text-foreground">{member.name}</p>
-                        <p className="text-xs text-muted-foreground">{getAge(member.dob)}y · {member.gender || "-"}</p>
+                        <p className="text-xs text-muted-foreground">{member.age !== undefined && member.age !== null ? `${member.age}y` : (member.dob ? `${getAge(member.dob)}y` : "-")} · {member.gender || "-"}</p>
                       </div>
                       <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
@@ -1248,7 +1228,7 @@ function PatientsPage() {
                   <tr key={patient._id} className="border-b transition-colors hover:bg-muted/30">
                     <td className="px-4 py-3 font-mono text-xs">{patient.patientId}</td>
                     <td className="px-4 py-3 font-medium">{patient.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{getAge(patient.dob)}y · {patient.gender || "-"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{patient.age !== undefined && patient.age !== null ? `${patient.age}y` : (patient.dob ? `${getAge(patient.dob)}y` : "-")} · {patient.gender || "-"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{patient.phone}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
@@ -1287,35 +1267,61 @@ function PatientsPage() {
               <TabsTrigger value="bulk">Bulk Upload</TabsTrigger>
             </TabsList>
 
-            {/* TAB 1: Single Patient (Existing form preserved) */}
+            {/* TAB 1: Single Patient */}
             <TabsContent value="single" className="mt-4">
               <form className="space-y-4" onSubmit={handleCreate}>
                 <div className="grid grid-cols-2 gap-4">
+                  {/* 1. Full Name */}
                   <div>
                     <label className="text-sm font-medium">Full Name</label>
-                    <Input name="name" required placeholder="Patient name" />
+                    <Input name="name" placeholder="Full Name" />
                   </div>
+
+                  {/* 2. Date of Admission */}
                   <div>
-                    <label className="text-sm font-medium">Date of Birth</label>
-                    <Input name="dob" type="date" />
+                    <label className="text-sm font-medium">Date of Admission</label>
+                    <Input name="date_of_admission" type="date" />
                   </div>
+
+                  {/* 3. Age */}
+                  <div>
+                    <label className="text-sm font-medium">Age</label>
+                    <Input name="age" type="number" min="0" max="150" placeholder="Age" />
+                  </div>
+
+                  {/* 4. Gender */}
                   <div>
                     <label className="text-sm font-medium">Gender</label>
-                    <Input name="gender" placeholder="male/female/other" />
+                    <select
+                      name="gender"
+                      defaultValue=""
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="M">M</option>
+                      <option value="F">F</option>
+                    </select>
                   </div>
+
+                  {/* 5. Phone */}
                   <div>
                     <label className="text-sm font-medium">Phone</label>
-                    <Input name="phone" required placeholder="+91 XXXXX XXXXX" />
+                    <Input name="phone" placeholder="+91 XXXXX XXXXX" />
                   </div>
-                  <div className="col-span-2">
+
+                  {/* 6. Email */}
+                  <div>
                     <label className="text-sm font-medium">Email</label>
-                    <Input name="email" required type="email" placeholder="email@example.com" />
+                    <Input name="email" type="email" placeholder="email@example.com" />
+                  </div>
+
+                  {/* 7. Address */}
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium">Address</label>
+                    <Input name="address" placeholder="Address" />
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium">Address</label>
-                  <Input name="address" placeholder="Full address" />
-                </div>
+
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
                     Cancel
@@ -1362,33 +1368,30 @@ function PatientsPage() {
                 <div className="rounded-lg border p-4 space-y-3 bg-card">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold text-foreground">
-                      Family Head (Primary Contact) <span className="text-destructive">*</span>
+                      Family Head (Primary Contact)
                     </h4>
                     <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Head</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <label className="text-xs font-medium">Full Name *</label>
+                      <label className="text-xs font-medium">Full Name</label>
                       <Input
-                        required
                         placeholder="Head's full name"
                         value={headData.name}
                         onChange={(e) => setHeadData({ ...headData, name: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium">Phone *</label>
+                      <label className="text-xs font-medium">Phone</label>
                       <Input
-                        required
                         placeholder="+91 XXXXX XXXXX"
                         value={headData.phone}
                         onChange={(e) => setHeadData({ ...headData, phone: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium">Email *</label>
+                      <label className="text-xs font-medium">Email</label>
                       <Input
-                        required
                         type="email"
                         placeholder="head@example.com"
                         value={headData.email}
@@ -1410,9 +1413,9 @@ function PatientsPage() {
                         value={headData.gender}
                         onChange={(e) => setHeadData({ ...headData, gender: e.target.value as any })}
                       >
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
+                        <option value="">Select Gender</option>
+                        <option value="M">M</option>
+                        <option value="F">F</option>
                       </select>
                     </div>
                     <div>
@@ -1458,9 +1461,8 @@ function PatientsPage() {
 
                       <div className="grid grid-cols-3 gap-2">
                         <div>
-                          <label className="text-xs font-medium">Name *</label>
+                          <label className="text-xs font-medium">Name</label>
                           <Input
-                            required
                             placeholder="Member name"
                             value={member.name}
                             onChange={(e) => updateFamilyMember(member.id, "name", e.target.value)}
@@ -1487,9 +1489,9 @@ function PatientsPage() {
                             value={member.gender}
                             onChange={(e) => updateFamilyMember(member.id, "gender", e.target.value as any)}
                           >
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                            <option value="other">Other</option>
+                            <option value="">Select Gender</option>
+                            <option value="M">M</option>
+                            <option value="F">F</option>
                           </select>
                         </div>
                         <div>
@@ -1632,8 +1634,11 @@ function PatientsPage() {
                           <th className="p-2 text-left font-medium">Name</th>
                           <th className="p-2 text-left font-medium">Phone</th>
                           <th className="p-2 text-left font-medium">Email</th>
-                          <th className="p-2 text-left font-medium">Family Group</th>
-                          <th className="p-2 text-left font-medium">Errors / Notes</th>
+                          <th className="p-2 text-left font-medium">Age</th>
+                          <th className="p-2 text-left font-medium">Gender</th>
+                          <th className="p-2 text-left font-medium">Address</th>
+                          <th className="p-2 text-left font-medium">Date of Admission</th>
+                          <th className="p-2 text-left font-medium">Notes</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1656,14 +1661,11 @@ function PatientsPage() {
                               <td className="p-2 font-medium">{row.name || "-"}</td>
                               <td className="p-2 text-muted-foreground">{row.phone || "-"}</td>
                               <td className="p-2 text-muted-foreground">{row.email || "-"}</td>
-                              <td className="p-2">{row.family_group || "-"}</td>
-                              <td className="p-2">
-                                {row.errors.length > 0 ? (
-                                  <span className="text-destructive">{row.errors.join(", ")}</span>
-                                ) : (
-                                  <span className="text-muted-foreground">None</span>
-                                )}
-                              </td>
+                              <td className="p-2">{row.age ?? "-"}</td>
+                              <td className="p-2">{row.gender || "-"}</td>
+                              <td className="p-2 text-muted-foreground">{row.address || "-"}</td>
+                              <td className="p-2">{row.date_of_admission || "-"}</td>
+                              <td className="p-2 text-muted-foreground">{row.notes || "-"}</td>
                             </tr>
                           ))}
                       </tbody>
@@ -1672,7 +1674,7 @@ function PatientsPage() {
 
                   <div className="flex items-center justify-between pt-2">
                     <p className="text-xs text-muted-foreground">
-                      Only valid rows will be committed to the database.
+                      All records are optional and duplicates are supported.
                     </p>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
@@ -1680,15 +1682,30 @@ function PatientsPage() {
                       </Button>
                       <Button
                         type="button"
-                        disabled={bulkMutation.isPending || bulkRows.filter((r) => r.isValid).length === 0}
+                        disabled={bulkMutation.isPending || bulkRows.length === 0}
                         onClick={() => {
                           const validData = bulkRows.filter((r) => r.isValid);
-                          bulkMutation.mutate(validData);
+                          bulkMutation.mutate(
+                            validData.map((r) => ({
+                              name: r.name,
+                              phone: r.phone,
+                              email: r.email,
+                              age: r.age,
+                              gender: r.gender,
+                              address: r.address,
+                              city: r.city,
+                              postal_code: r.postal_code,
+                              family_group: r.family_group,
+                              relationship: r.relationship,
+                              notes: r.notes,
+                              date_of_admission: r.date_of_admission,
+                            }))
+                          );
                         }}
                       >
                         {bulkMutation.isPending
                           ? "Importing..."
-                          : `Import ${bulkRows.filter((r) => r.isValid).length} Valid Patients`}
+                          : `Import ${bulkRows.filter((r) => r.isValid).length} Patients`}
                       </Button>
                     </div>
                   </div>

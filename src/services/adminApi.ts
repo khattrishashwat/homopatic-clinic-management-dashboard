@@ -90,7 +90,9 @@ export interface PatientDto {
   name: string;
   email: string;
   phone: string;
-  gender?: "male" | "female" | "other";
+  age?: number;
+  date_of_admission?: string;
+  gender?: "M" | "F" | "male" | "female" | "other" | string;
   dob?: string;
   address?: string | { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   family_group?: string;
