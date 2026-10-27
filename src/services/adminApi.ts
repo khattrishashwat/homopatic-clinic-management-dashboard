@@ -95,12 +95,16 @@ export interface PatientDto {
   gender?: "M" | "F" | "male" | "female" | "other" | string;
   dob?: string;
   address?: string | { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  emergency_contact?: { name?: string; phone?: string; relationship?: string };
+  clinic_code?: string;
   family_group?: string;
   family_members?: PatientDto[];
   medical_history?: string[];
   notes?: string;
   relationship?: string;
+  active?: boolean;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface PrescriptionMedicineDto {

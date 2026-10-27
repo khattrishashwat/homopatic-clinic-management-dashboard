@@ -18,6 +18,7 @@ import {
   MapPin,
   PenTool,
   Phone,
+  Pencil,
   Plus,
   Printer,
   Search,
@@ -34,6 +35,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -215,18 +218,444 @@ class DetailErrorBoundary extends React.Component<
 }
 
 /* ========================================================================= */
+/* EDIT PATIENT DIALOG                                                       */
+/* ========================================================================= */
+function EditPatientDialog({
+  patient,
+  open,
+  onOpenChange,
+  onSuccess,
+}: {
+  patient: PatientDto | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: (updated: PatientDto) => void;
+}) {
+  const [activeEditTab, setActiveEditTab] = useState<"basic" | "contact" | "medical" | "family">("basic");
+  const [formData, setFormData] = useState({
+    name: "",
+    patientId: "",
+    phone: "",
+    email: "",
+    age: "",
+    gender: "",
+    dob: "",
+    date_of_admission: "",
+    clinic_code: "01",
+    street: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "India",
+    emergency_name: "",
+    emergency_phone: "",
+    emergency_relationship: "",
+    family_group: "",
+    relationship: "",
+    medical_history: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    if (patient && open) {
+      const addr = typeof patient.address === "object" && patient.address ? patient.address : {};
+      const street = typeof patient.address === "string" ? patient.address : addr.street || "";
+      const em = patient.emergency_contact || {};
+      const mh = Array.isArray(patient.medical_history)
+        ? patient.medical_history.join(", ")
+        : typeof patient.medical_history === "string"
+        ? patient.medical_history
+        : "";
+
+      const toDateStr = (val?: string) => {
+        if (!val) return "";
+        try {
+          return new Date(val).toISOString().split("T")[0];
+        } catch {
+          return String(val).split("T")[0] || "";
+        }
+      };
+
+      setFormData({
+        name: patient.name || "",
+        patientId: patient.patientId || "",
+        phone: patient.phone || "",
+        email: patient.email || "",
+        age: patient.age !== undefined && patient.age !== null ? String(patient.age) : "",
+        gender: patient.gender || "",
+        dob: toDateStr(patient.dob),
+        date_of_admission: toDateStr(patient.date_of_admission),
+        clinic_code: patient.clinic_code || "01",
+        street,
+        city: addr.city || "",
+        state: addr.state || "",
+        postal_code: addr.postal_code || "",
+        country: addr.country || "India",
+        emergency_name: em.name || "",
+        emergency_phone: em.phone || "",
+        emergency_relationship: em.relationship || "",
+        family_group: patient.family_group || "",
+        relationship: patient.relationship || "",
+        medical_history: mh,
+        notes: patient.notes || "",
+      });
+      setActiveEditTab("basic");
+    }
+  }, [patient, open]);
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!patient?._id) throw new Error("Patient ID is missing");
+      const payload: Partial<PatientDto> = {
+        name: formData.name.trim(),
+        patientId: formData.patientId.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
+        age: formData.age !== "" && !isNaN(Number(formData.age)) ? Number(formData.age) : undefined,
+        gender: formData.gender,
+        dob: formData.dob || undefined,
+        date_of_admission: formData.date_of_admission || undefined,
+        clinic_code: formData.clinic_code || "01",
+        address: {
+          street: formData.street.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          postal_code: formData.postal_code.trim(),
+          country: formData.country.trim() || "India",
+        },
+        emergency_contact: {
+          name: formData.emergency_name.trim(),
+          phone: formData.emergency_phone.trim(),
+          relationship: formData.emergency_relationship.trim(),
+        },
+        family_group: formData.family_group.trim() || undefined,
+        relationship: formData.relationship.trim() || undefined,
+        medical_history: formData.medical_history
+          ? formData.medical_history.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        notes: formData.notes.trim(),
+      };
+      return patientsApi.update(patient._id, payload);
+    },
+    onSuccess: (res: any) => {
+      const updated = res?.data || res;
+      toast.success("Patient details updated successfully!");
+      onSuccess(updated);
+      onOpenChange(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update patient details");
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateMutation.mutate();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Pencil className="h-5 w-5 text-primary" /> Edit Patient: {patient?.name || patient?.patientId}
+          </DialogTitle>
+          <DialogDescription>
+            Update any patient details including personal information, contact, medical history, address, and family linkages.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <Tabs value={activeEditTab} onValueChange={(v) => setActiveEditTab(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="basic">Personal Info</TabsTrigger>
+              <TabsTrigger value="contact">Contact & Address</TabsTrigger>
+              <TabsTrigger value="medical">Medical & Notes</TabsTrigger>
+              <TabsTrigger value="family">Family & Emergency</TabsTrigger>
+            </TabsList>
+
+            {/* TAB 1: Personal Info */}
+            <TabsContent value="basic" className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold">Full Name *</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="Patient Full Name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Patient UID / ID *</Label>
+                  <Input
+                    className="mt-1 font-mono"
+                    placeholder="e.g. MD'sH/101/01"
+                    value={formData.patientId}
+                    onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
+                    required
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Unique registration ID</p>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Age</Label>
+                  <Input
+                    className="mt-1"
+                    type="number"
+                    min="0"
+                    max="150"
+                    placeholder="Age in years"
+                    value={formData.age}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Gender</Label>
+                  <select
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="M">Male (M)</option>
+                    <option value="F">Female (F)</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Date of Birth (DOB)</Label>
+                  <Input
+                    className="mt-1"
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Date of Admission / Registration</Label>
+                  <Input
+                    className="mt-1"
+                    type="date"
+                    value={formData.date_of_admission}
+                    onChange={(e) => setFormData({ ...formData, date_of_admission: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Clinic Code</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="01"
+                    value={formData.clinic_code}
+                    onChange={(e) => setFormData({ ...formData, clinic_code: e.target.value })}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* TAB 2: Contact & Address */}
+            <TabsContent value="contact" className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold">Phone Number</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="+91 XXXXX XXXXX"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Email Address</Label>
+                  <Input
+                    className="mt-1"
+                    type="email"
+                    placeholder="patient@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-span-1 sm:col-span-2">
+                  <Label className="text-xs font-semibold">Street / Full Address</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="House / Flat No, Street, Landmark"
+                    value={formData.street}
+                    onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">City</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="City"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">State</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="State"
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Postal / PIN Code</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="e.g. 110085"
+                    value={formData.postal_code}
+                    onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Country</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="India"
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* TAB 3: Medical & Notes */}
+            <TabsContent value="medical" className="mt-4 space-y-4">
+              <div>
+                <Label className="text-xs font-semibold">Medical History / Known Conditions</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="e.g. Hypertension, Asthma, Migraine, Eczema (comma-separated)"
+                  value={formData.medical_history}
+                  onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Separate multiple conditions with commas (,)</p>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">Clinical Notes / Remarks</Label>
+                <Textarea
+                  className="mt-1 min-h-[100px]"
+                  placeholder="Additional observations, dietary preferences, or treatment notes..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                />
+              </div>
+            </TabsContent>
+
+            {/* TAB 4: Family & Emergency */}
+            <TabsContent value="family" className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold">Family Group Name</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="e.g. FAM-SHARMA"
+                    value={formData.family_group}
+                    onChange={(e) => setFormData({ ...formData, family_group: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">Family Relationship</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="e.g. Head, Spouse, Son, Daughter"
+                    value={formData.relationship}
+                    onChange={(e) => setFormData({ ...formData, relationship: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-3.5 bg-muted/20 space-y-3">
+                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Emergency Contact</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs font-medium">Contact Person Name</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="Name"
+                      value={formData.emergency_name}
+                      onChange={(e) => setFormData({ ...formData, emergency_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Contact Phone</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="+91..."
+                      value={formData.emergency_phone}
+                      onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Relationship</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. Spouse / Brother"
+                      value={formData.emergency_relationship}
+                      onChange={(e) => setFormData({ ...formData, emergency_relationship: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex items-center justify-between border-t pt-4">
+            <p className="text-xs text-muted-foreground">Make sure all critical fields are accurate before saving.</p>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Saving changes..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ========================================================================= */
 /* DEDICATED PATIENT PROFILE & MEDICAL REPORTS PAGE (NO MODAL)               */
 /* ========================================================================= */
 function PatientDetailPage({
-  patient,
+  patient: initialPatient,
   onBack,
+  onPatientUpdated,
 }: {
   patient: PatientDto;
   onBack: () => void;
+  onPatientUpdated?: (patient: PatientDto) => void;
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [patient, setPatient] = useState<PatientDto>(initialPatient);
+  const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<"reports" | "info" | "prescriptions">("reports");
+
+  useEffect(() => {
+    setPatient(initialPatient);
+  }, [initialPatient]);
 
   // Bulk Upload State
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -404,6 +833,14 @@ function PatientDetailPage({
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsEditing(true)}
+            className="font-medium hover:bg-primary/10 hover:text-primary"
+          >
+            <Pencil className="mr-1.5 h-4 w-4 text-primary" /> Edit Details
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -658,7 +1095,17 @@ function PatientDetailPage({
           <Card>
             <CardContent className="p-6 space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Personal & Contact Information</h3>
+                <div className="flex items-center justify-between border-b pb-3 mb-3">
+                  <h3 className="text-sm font-semibold text-foreground">Personal & Contact Information</h3>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditing(true)}
+                    className="h-8 text-primary hover:bg-primary/10 font-medium"
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit Information
+                  </Button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-xs text-muted-foreground block">Full Name</span>
@@ -903,6 +1350,17 @@ function PatientDetailPage({
           )}
         </DialogContent>
       </Dialog>
+
+      <EditPatientDialog
+        patient={patient}
+        open={isEditing}
+        onOpenChange={setIsEditing}
+        onSuccess={(updated) => {
+          setPatient(updated);
+          if (onPatientUpdated) onPatientUpdated(updated);
+          queryClient.invalidateQueries({ queryKey: ["patients"] });
+        }}
+      />
     </motion.div>
   );
 }
@@ -915,6 +1373,7 @@ function PatientsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<PatientDto | null>(null);
+  const [editingPatient, setEditingPatient] = useState<PatientDto | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const patientsQuery = useQuery({ queryKey: ["patients", search], queryFn: () => patientsApi.list({ search, limit: 50 }) });
   const patients = patientsQuery.data?.data || [];
@@ -1152,6 +1611,10 @@ function PatientsPage() {
         <PatientDetailPage
           patient={selectedPatient}
           onBack={handleBackToList}
+          onPatientUpdated={(updated) => {
+            setSelectedPatient(updated);
+            queryClient.invalidateQueries({ queryKey: ["patients"] });
+          }}
         />
       </DetailErrorBoundary>
     );
@@ -1241,7 +1704,8 @@ function PatientsPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleViewPatient(patient)} title="Open Patient Details & Medical Reports"><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteMutation.mutate(patient._id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10" onClick={() => setEditingPatient(patient)} title="Edit Patient Details"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteMutation.mutate(patient._id)} title="Delete Patient"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </td>
                   </tr>
@@ -1715,6 +2179,15 @@ function PatientsPage() {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      <EditPatientDialog
+        patient={editingPatient}
+        open={Boolean(editingPatient)}
+        onOpenChange={(open) => !open && setEditingPatient(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["patients"] });
+        }}
+      />
     </motion.div>
   );
 }
